@@ -211,27 +211,43 @@ class Orm
 	        && $sDbName === null && Db::getContainer() !== null) {
 
 	        $this->where = new Where;
+            return $this;
 	    }
 	    else if ($sName === null && $sType === null && $sHost === null && $sUser === null && $sPassword === null
 	        && $sDbName === null && Db::getContainer() === null) {
 
-	            throw new \Exception("Error: No connection define!");
-	    }
-	    else {
-	        
-	        $oContainer = new Container;
-	        
-	        $oContainer->setDbName($sDbName)
-	                   ->setHost($sHost)
-	                   ->setName($sName)
-	                   ->setPassword($sPassword)
-	                   ->setType($sType)
-	                   ->setUser($sUser);
+	        if (class_exists('\Venus\core\Config')) {
+                $oDbConfig = \Venus\core\Config::get('Db')->configuration;
 
-	        Db::setContainer($oContainer);
-	        $this->setDefaultDb($sName);
-            $this->where = new Where;
+                if (is_object($oDbConfig)) {
+                    $sName = $oDbConfig->db;
+                    $sType = $oDbConfig->type;
+                    $sHost = $oDbConfig->host;
+                    $sUser = $oDbConfig->user;
+                    $sPassword = $oDbConfig->password;
+                    $sDbName = $oDbConfig->db;
+                }
+                else {
+                    throw new \Exception("Error: No connection define!");
+                }
+            }
+            else {
+                throw new \Exception("Error: No connection define!");
+            }
 	    }
+
+        $oContainer = new Container;
+
+        $oContainer->setDbName($sDbName)
+                   ->setHost($sHost)
+                   ->setName($sName)
+                   ->setPassword($sPassword)
+                   ->setType($sType)
+                   ->setUser($sUser);
+
+        Db::setContainer($oContainer);
+        $this->setDefaultDb($sName);
+        $this->where = new Where;
 	}
 
 	/**
@@ -535,7 +551,11 @@ class Orm
 		if (preg_match('/INSERT INTO/i', $sQuery)) {
 
 			$oDb = self::connect();
-			$oDb->exec($sQuery);
+
+            if (!$oDb->exec($sQuery)) {
+                error_log($sQuery."\n".print_r($oDb->errorInfo(), true));
+            }
+
 			$this->flush();
 			return $oDb->lastInsertId();
 		}
