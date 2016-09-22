@@ -1,11 +1,11 @@
 {
     "name": "vyctory/attila-orm",
     "license": "MIT",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "type": "ORM",
     "description": "ORM in PHP",
     "keywords": ["orm"],
-    "homepage": "https://github.com/las93/attila",
+    "homepage": "https://github.com/vyctory/attila-orm",
     "authors": [
         {
             "name": "Paquet Judicaël",
