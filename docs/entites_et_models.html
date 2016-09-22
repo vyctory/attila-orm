@@ -1,16 +1,32 @@
-<!doctype>
-<html>
-<head>
-    <meta charset="UTF-8">
-    <style>
-        body{
-            font-family: arial;font-size:12px;
-        }
-    </style>
-</head>
-    <body>
-        <h1>Entités et modèles</h1>
-        <a href="ma_premiere_base.html">[précédent]</a><br/><br/>
+<!DOCTYPE html>
+<html lang="en-us">
+	<head>
+		<meta charset="UTF-8">
+		<title>Entités et modèles sur Attila</title>
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<link rel="stylesheet" type="text/css" href="stylesheets/normalize.css" media="screen">
+		<link href='https://fonts.googleapis.com/css?family=Open+Sans:400,700' rel='stylesheet' type='text/css'>
+		<link rel="stylesheet" type="text/css" href="stylesheets/stylesheet.css" media="screen">
+		<link rel="stylesheet" type="text/css" href="stylesheets/github-light.css" media="screen">
+	</head>
+	<body>
+	<section class="page-header">
+		<h1 class="project-name">Entités et modèles sur Attila</h1>
+		<h2 class="project-tagline">Attila est un ORM PHP</h2>
+		<a href="https://github.com/vyctory/venusframework" class="btn">Vu sur GitHub</a>
+		<a href="https://github.com/vyctory/venusframework/zipball/master" class="btn">Télécharger .zip</a>
+		<a href="https://github.com/vyctory/venusframework/tarball/master" class="btn">Télécharger .tar.gz</a>
+	</section>
+
+	<section class="main-content">
+
+	<a href="ma_premiere_base.html">[précédent]</a>
+
+		<h3>
+			<a id="welcome-to-github-pages" class="anchor" href="#welcome-to-github-pages" aria-hidden="true">
+				<span aria-hidden="true" class="octicon octicon-link"></span>
+			</a>Entités et modèles</h3>
+
         Une entité est un conteneur représentatif de la table (avec des possibilités d’extensions) et le modèle est le
         gestionnaire de cette entité avec de nombreuses fonctions de manipulations de bases (plus de 90% des besoins).
         <br/><br/>
@@ -64,7 +80,7 @@
         Modèle : /bundles/src/Demo/app/Model/Exemple1.php (sous Venus 3)<br/><br/>
 
         Nous détaillerons la façon de faire des requêtes Attila plus tard dans un prochain chapitre. Ici vous pouvez
-        deviner que nosu faisons un select avec une jointure.<br/><br/>
+        deviner que nous faisons un select avec une jointure.<br/><br/>
 
         <pre>
 			php index.php scaffolding:run -v -p HomeBundle -c <span style="color:green"><small>(v2.0.0)</small></span>
@@ -89,19 +105,19 @@ public function initialize() { ; }
 public function onConstruct() { ; }
 		</pre>
 
-		3/ La fonction beforeSave permet d’initialiser l’entité avant chaque save effectué :
+		3/ La fonction beforeSave permet d’initialiser l’entité avant chaque save effectué :<br/><br/>
 
 		<pre>
 public function beforeSave() { ; }
 		</pre>
 
-		4/ La fonction afterFetch permet d’initialiser l’entité dès qu’elle a été remplit (par load) :
+		4/ La fonction afterFetch permet d’initialiser l’entité dès qu’elle a été remplit (par load) :<br/><br/>
 
 		<pre>
 public function afterFetch() { ; }
 		</pre>
 
-		Attila permet compter le nombre de résultats d’une table grâce à la fonction count :
+		Attila permet compter le nombre de résultats d’une table grâce à la fonction count :<br/><br/>
 
 		<pre>
 $oCategory = new Category;
@@ -109,7 +125,7 @@ var_dump($oCategory->count());
 		</pre>
 
 		Attila permet compter le nombre de résultats d’une table en faisant un distinct précis sur un champ grâce à la
-		fonction count :
+		fonction count :<br/><br/>
 
 		<pre>
 $oCategory = new Category;
@@ -117,12 +133,19 @@ var_dump($oCategory->count(‘distinct’ => ‘name’));
 		</pre>
 
 		Attila permet compter le nombre de résultats d’une table en retournant le nombre de résultat pour chaque ligne
-		grâce au paramètre group :
+		grâce au paramètre group :<br/><br/>
 
 		<pre>
 $oCategory = new Category;
 var_dump($oCategory->count(‘group’ => ‘name’));
 		</pre>
+
+		Venus permet de sauvegarder ou de modifier rapidement une entité. Pour cela lorsque vous avez une entité faites :
+		<br/><br/>
+		$oEntity->save() ; pour la sauvegarder (update ou insert selon la clé primaire indiquée)<br/>
+		=> on peut mettre true en paramètre pour accepter un INSERT ON DUPLICATE KEY UPDATE.<br/><br/>
+		$oEntity->remove() ; pour la supprimer<br/><br/>
+
 
 		<a href="utilisation_des_modeles.html">[suivant]</a>
     </body>
