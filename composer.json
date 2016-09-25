@@ -1,7 +1,7 @@
 {
     "name": "vyctory/attila-orm",
     "license": "MIT",
-    "version": "1.0.3",
+    "version": "1.0.4",
     "type": "ORM",
     "description": "ORM in PHP",
     "keywords": ["orm"],
@@ -17,6 +17,7 @@
         "psr-4": { "Attila\\": "Attila/" }
     },
     "require": {
-        "php": ">=7.0.0"
+        "php": ">=7.0.0",
+        "vyctory/venus-phpdoc": "*"
     }
 }

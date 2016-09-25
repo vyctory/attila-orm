@@ -24,6 +24,7 @@ namespace Attila\Batch;
 use \Attila\lib\Db as Db;
 use \Attila\lib\Db\Container as DbContainer;
 use \Attila\lib\Bash;
+use \VenusPhpdoc\Reader;
 
 /**
  * Batch that create entity
@@ -59,6 +60,8 @@ class Entity
         "i" => "string",
         "v" => false
     );
+
+    private $decimalTypes = ['float', 'decimal', 'double', 'precision', 'real', 'float4', 'float8', 'numeric'];
     
 	/**
 	 * run the batch to create entity
@@ -142,13 +145,6 @@ class Entity
 		else { $sSqlJson = false; $sSqlJsonFile = str_replace('Batch', '', __DIR__).'Db.conf'; }
 
 		/**
-		 * option -d [drop table]
-		 */
-
-		if (isset($aOptions['d'])) { $bDropTable = true; }
-		else { $bDropTable = false; }
-
-		/**
 		 * option -g [indicate the Entities directory]
 		 */
 
@@ -161,6 +157,13 @@ class Entity
 
 	    if (isset($aOptions['h'])) { $sModelsPath = $aOptions['h']; }
 		else { $sModelsPath = ''; }
+
+        /**
+         * option -o [passed an array of options)
+         */
+
+        if (isset($aOptions['o'])) { $options = $aOptions['o']; }
+        else { $options = []; }
 
 		/**
 		 * option -i [indicated the const json file to manage annotation in files]
@@ -182,6 +185,8 @@ class Entity
 
 		if ($sSqlJsonFile !== false) { $oJson = json_decode(file_get_contents($sSqlJsonFile)); }
 		else { $oJson = json_decode($sSqlJson); }
+
+		$this->constructConfFileOfEntities($options, $sEntitiesPath);
 		
 		$oConnection = $oJson->configuration;
 
@@ -213,7 +218,7 @@ class Entity
         		           ->setUser($oConnection->user);
 			    
 				$oPdo = Db::connect($oContainer);
-				
+
 				foreach ($oConnection->tables as $sTableName => $oOneTable) {
 
     				foreach ($oOneTable->fields as $sFieldName => $oOneField) {
@@ -319,13 +324,35 @@ class Entity
     			
 				foreach ($oConnection->tables as $sTableName => $oOneTable) {
 
-					if ($bDropTable === true) {
-						
-						$sQuery = 'DROP TABLE IF EXISTS '.SQL_FIELD_NAME_SEPARATOR.$sTableName.SQL_FIELD_NAME_SEPARATOR;
-						if ($bDumpSql) { echo $sQuery."\n"; } else { $oPdo->query($sQuery); }
-					}
-					
-					$sQuery = 'CREATE TABLE IF NOT EXISTS '.SQL_FIELD_NAME_SEPARATOR.$sTableName.SQL_FIELD_NAME_SEPARATOR.' (';
+                    $query = "SHOW TABLES LIKE '".$sTableName."'";
+                    $results = $oPdo->query($query);
+
+                    if (count($results) > 0) {
+                        $tableExists = true;
+                        $query = 'DESC ' . SQL_FIELD_NAME_SEPARATOR . $sTableName . SQL_FIELD_NAME_SEPARATOR;
+                        $results = $oPdo->query($query);
+                        $tableDesc = [];
+
+                        foreach ($results as $key => $one) {
+
+                            $one[1] = str_replace('int(11)', 'int', $one[1]);
+
+                            $tableDesc[$one[0]] = [
+                                'type' =>  preg_replace('/^([a-zA-Z]+).*$/', '$1', $one[1]),
+                                'value' =>  preg_replace('/^[a-zA-Z]+\(?([^\)]*)\)?.*$/', '$1', $one[1]),
+                                'null' =>  $one[2]=='NO'?false:true,
+                                'key' => $one[3],
+                                'default' => $one[4],
+                                'extra' => $one[5],
+                                'unsigned' => preg_match('/unsigned/', $one[1])?true:false,
+                                'table_exists' => false
+                            ];
+                        }
+
+                    } else {
+                        $tableExists = true;
+                        $sQuery = 'CREATE TABLE IF NOT EXISTS ' . SQL_FIELD_NAME_SEPARATOR . $sTableName . SQL_FIELD_NAME_SEPARATOR . ' (';
+                    }
 
 					$aIndex = array();
 					$aUnique = array();
@@ -333,105 +360,168 @@ class Entity
 
 					foreach ($oOneTable->fields as $sFieldName => $oOneField) {
 
-						$sQuery .= SQL_FIELD_NAME_SEPARATOR.$sFieldName.SQL_FIELD_NAME_SEPARATOR.' '.$oOneField->type;
+						$field = SQL_FIELD_NAME_SEPARATOR.$sFieldName.SQL_FIELD_NAME_SEPARATOR.' '.$oOneField->type;
 
-						if (isset($oOneField->values) && $oOneField->type === 'enum' && is_array($oOneField->values)) {
+                        if (isset($oOneField->precision) && isset($oOneField->scale) && in_array($oOneField->type, $this->decimalTypes)) {
 
-							$sQuery .= '("'.implode('","', $oOneField->values).'") ';
+                            $field .= '("'.$oOneField->precision.', '.$oOneField->scale.'") ';
+                        }
+                        else if (isset($oOneField->values) && $oOneField->type === 'enum' && is_array($oOneField->values)) {
+
+                            $field .= '("'.implode('","', $oOneField->values).'") ';
 						}
 						else if (isset($oOneField->value) && (is_int($oOneField->value) || preg_match('/^[0-9,]+$/', $oOneField->value))) {
 
-							$sQuery .= '('.$oOneField->value.') ';
+                            $field .= '('.$oOneField->value.') ';
 						}
 
 						if (isset($oOneField->unsigned) && $oOneField->unsigned === true) {
 
-							$sQuery .= ' UNSIGNED ';
+                            $field .= ' UNSIGNED ';
 						}
 
-						if (isset($oOneField->null) && $oOneField->null === true) { $sQuery .= ' NULL '; }
-						else if (isset($oOneField->null) && $oOneField->null === false) { $sQuery .= ' NOT NULL '; }
+						if (isset($oOneField->null) && $oOneField->null === true) { $field .= ' NULL '; }
+						else  { $field .= ' NOT NULL '; }
 
 						if (isset($oOneField->default) && is_string($oOneField->default)) {
 
-							$sQuery .= ' DEFAULT "'.$oOneField->default.'" ';
+                            $field .= ' DEFAULT "'.$oOneField->default.'" ';
 						}
 						else if (isset($oOneField->default)) {
 
-							$sQuery .= ' DEFAULT '.$oOneField->default.' ';
+                            $field .= ' DEFAULT '.$oOneField->default.' ';
 						}
 
 						if (isset($oOneField->autoincrement) && $oOneField->autoincrement === true) {
 
-							$sQuery .= ' AUTO_INCREMENT ';
+                            $field .= ' AUTO_INCREMENT ';
 						}
 
-						$sQuery .= ', ';
+                        if ($tableExists !== true) {
+                            $sQuery .= $field . ', ';
 
-						if (isset($oOneField->key) && $oOneField->key === 'primary') { $aPrimaryKey[] = $sFieldName; }
-						else if (isset($oOneField->key) && $oOneField->key === 'index') { $aIndex[] = $sFieldName; }
-						else if (isset($oOneField->key) && $oOneField->key === 'unique') { $aUnique[] = $sFieldName; }
-					
-    					if (isset($oOneField->join) && is_string($oOneField->join)) {
+                            if (isset($oOneField->key) && $oOneField->key === 'primary') { $aPrimaryKey[] = $sFieldName; }
+                            else if (isset($oOneField->key) && $oOneField->key === 'index') { $aIndex[] = $sFieldName; }
+                            else if (isset($oOneField->key) && $oOneField->key === 'unique') { $aUnique[] = $sFieldName; }
 
-    					    if (isset($oOneField->constraint) && is_string($oOneField->constraint)) {
-    					    
-    					        $sQuery .= ' CONSTRAINT '.$oOneField->constraint.' ';
-    					    }
-    					    
-    					    $sQuery .= 'FOREIGN KEY('.$sFieldName.') REFERENCES '.$oOneField->join.'('.$oOneField->join_by_field.') ';
-    					    
-    					    if (isset($oOneField->join_delete) && is_string($oOneField->join_delete)) {
-    					        
-    					        $sQuery .= ' ON DELETE '.$oOneField->join_delete.' ';
-    					    }
+                            if (isset($oOneField->join) && is_string($oOneField->join)) {
 
-    					    if (isset($oOneField->join_update) && is_string($oOneField->join_update)) {
-    					        	
-    					        $sQuery .= ' ON UPDATE '.$oOneField->join_update.' ';
-    					    }
-    					    
-    					    $sQuery .= ',';
-    					}
+                                if (isset($oOneField->constraint) && is_string($oOneField->constraint)) {
+
+                                    $sQuery .= ' CONSTRAINT '.$oOneField->constraint.' ';
+                                }
+
+                                $sQuery .= 'FOREIGN KEY('.$sFieldName.') REFERENCES '.$oOneField->join.'('.$oOneField->join_by_field.') ';
+
+                                if (isset($oOneField->join_delete) && is_string($oOneField->join_delete)) {
+
+                                    $sQuery .= ' ON DELETE '.$oOneField->join_delete.' ';
+                                }
+
+                                if (isset($oOneField->join_update) && is_string($oOneField->join_update)) {
+
+                                    $sQuery .= ' ON UPDATE '.$oOneField->join_update.' ';
+                                }
+
+                                $sQuery .= ',';
+                            }
+                        } else if (isset($tableDesc[$sFieldName])) {
+
+                            $tableDesc[$sFieldName]['table_exists'] = true;
+                            $futurField = $this->createFieldByArray($sTableName, $sFieldName, $tableDesc[$sFieldName], 'MODIFY');
+                            $field = 'ALTER TABLE ' . SQL_FIELD_NAME_SEPARATOR . $sTableName . SQL_FIELD_NAME_SEPARATOR . ' MODIFY '.$field;
+
+                            if ($futurField !== $field) {
+                                if ($bDumpSql) {
+                                    echo $field . "\n";
+                                } else if ($oPdo->query($field) === false) {
+
+                                    echo "\n[ERROR SQL] " . $oPdo->errorInfo()[2] . " for the table " . $sTableName . "\n";
+                                    echo "\n" . $field . "\n";
+                                }
+                            }
+                        } else {
+                            $tableDesc[$sFieldName]['table_exists'] = true;
+                            $field = 'ALTER TABLE ' . SQL_FIELD_NAME_SEPARATOR . $sTableName . SQL_FIELD_NAME_SEPARATOR . ' DROP COLUMN '.$field;
+                            if ($bDumpSql) {
+                                echo $field."\n";
+                            } else  if ($oPdo->query($field) === false) {
+
+                                echo "\n[ERROR SQL] ".$oPdo->errorInfo()[2]." for the table ".$sTableName."\n";
+                                echo "\n".$field."\n";
+                            }
+                        }
 					}
 
-					if (count($aPrimaryKey) > 0) { $sQuery .= 'PRIMARY KEY('.implode(',', $aPrimaryKey).') , '; }
-					
-					if (count($aIndex) > 0) { $sQuery .= 'KEY('.implode(',', $aIndex).') , '; }
-					
-					if (count($aUnique) > 0) { $sQuery .= 'UNIQUE KEY '.$aUnique[0].' ('.implode(',', $aUnique).') , '; }
+                    if ($tableExists !== true) {
+                        if (count($aPrimaryKey) > 0) {
+                            $sQuery .= 'PRIMARY KEY(' . implode(',', $aPrimaryKey) . ') , ';
+                        }
 
-					if (isset($oOneTable->index)) {
+                        if (count($aIndex) > 0) {
+                            $sQuery .= 'KEY(' . implode(',', $aIndex) . ') , ';
+                        }
 
-						foreach ($oOneTable->index as $sIndexName => $aFields) {
+                        if (count($aUnique) > 0) {
+                            $sQuery .= 'UNIQUE KEY ' . $aUnique[0] . ' (' . implode(',', $aUnique) . ') , ';
+                        }
 
-							$sQuery .= 'KEY '.$sIndexName.' ('.implode(',', $aFields).') , ';
-						}
-					}
+                        if (isset($oOneTable->index)) {
 
-					if (isset($oOneTable->unique)) {
+                            foreach ($oOneTable->index as $sIndexName => $aFields) {
 
-						foreach ($oOneTable->unique as $sIndexName => $aFields) {
+                                $sQuery .= 'KEY ' . $sIndexName . ' (' . implode(',', $aFields) . ') , ';
+                            }
+                        }
 
-							$sQuery .= 'KEY '.$sIndexName.' ('.implode(',', $aFields).') , ';
-						}
-					}
+                        if (isset($oOneTable->unique)) {
 
-					$sQuery = substr($sQuery, 0, -2);
-					$sQuery .= ')';
-					
-					if (isset($oOneTable->engine)) {  $sQuery .= ' ENGINE='.$oOneTable->engine.' '; }
-					if (isset($oOneTable->auto_increment)) {  $sQuery .= ' AUTO_INCREMENT='.$oOneTable->auto_increment.' '; }
-					if (isset($oOneTable->default_charset)) {  $sQuery .= ' DEFAULT CHARSET='.$oOneTable->default_charset.' '; }
+                            foreach ($oOneTable->unique as $sIndexName => $aFields) {
 
-                    if ($bDumpSql) {
-                        echo $sQuery."\n";
-                    } else  if ($oPdo->query($sQuery) === false) {
-					    
-					   echo "\n[ERROR SQL] ".$oPdo->errorInfo()[2]." for the table ".$sTableName."\n"; 
-					   echo "\n".$sQuery."\n"; 
-					}
+                                $sQuery .= 'KEY ' . $sIndexName . ' (' . implode(',', $aFields) . ') , ';
+                            }
+                        }
+
+                        $sQuery = substr($sQuery, 0, -2);
+                        $sQuery .= ')';
+
+                        if (isset($oOneTable->engine)) {
+                            $sQuery .= ' ENGINE=' . $oOneTable->engine . ' ';
+                        }
+                        if (isset($oOneTable->auto_increment)) {
+                            $sQuery .= ' AUTO_INCREMENT=' . $oOneTable->auto_increment . ' ';
+                        }
+                        if (isset($oOneTable->default_charset)) {
+                            $sQuery .= ' DEFAULT CHARSET=' . $oOneTable->default_charset . ' ';
+                        }
+
+                        if ($bDumpSql) {
+                            echo $sQuery . "\n";
+                        } else if ($oPdo->query($sQuery) === false) {
+
+                            echo "\n[ERROR SQL] " . $oPdo->errorInfo()[2] . " for the table " . $sTableName . "\n";
+                            echo "\n" . $sQuery . "\n";
+                        }
+                    }
 				}
+
+				// Column not in the database but is in the config file
+
+                foreach ($tableDesc as $key => $one) {
+
+                    if (!$one['table_exists']) {
+
+                        $field = $this->createFieldByArray($sTableName, $sFieldName, $tableDesc[$sFieldName], 'ADD');
+
+                        if ($bDumpSql) {
+                            echo $field . "\n";
+                        } else if ($oPdo->query($field) === false) {
+
+                            echo "\n[ERROR SQL] " . $oPdo->errorInfo()[2] . " for the table " . $sTableName . "\n";
+                            echo "\n" . $field . "\n";
+                        }
+                    }
+                }
 			}
 
 			/**
@@ -463,17 +553,8 @@ use \Attila\core\Entity as Entity;
 use \Attila\Orm as Orm;
 
 /**
- * Entity to '.$sTableName.'
- *
- * @category  	\\'.CATEGORY.'
- * @package   	'.ENTITY_NAMESPACE.'
- * @author    	'.AUTHOR.'
- * @copyright 	'.COPYRIGHT.'
- * @license   	'.LICENCE.'
- * @version   	Release: '.VERSION.'
- * @filesource	'.FILESOURCE.'
- * @link      	'.LINK.'
- * @since     	1.0
+ * @ORM\Table(name="'.$sTableName.'")
+ * @ORM\Entity(repositoryClass="'.str_replace('Entity', 'Model', preg_replace('/^\\\\/', '', ENTITY_NAMESPACE)).'\\'.$sTableName.'")
  */
 class '.$sTableName.' extends Entity 
 {';
@@ -510,28 +591,62 @@ class '.$sTableName.' extends Entity
 	
 							$sType = 'array';
 						}
-	
-						$sContentFile .= '
+
+                        $optionsAnnotation = '';
+
+						if (($sType === 'int' || $sType === 'float') || isset($oField->default)) {
+
+                            $optionsAnnotation = ', options={';
+
+                            if ($sType === 'int' || $sType === 'float') {
+                                $optionsAnnotation .= '"unsigned":';
+
+                                if (isset($oField->unsigned) && $oField->unsigned) { $optionsAnnotation .= 'true,'; }
+                                else { $optionsAnnotation .= 'false,'; }
+                            }
+
+                            if (isset($oField->default)) {
+                                $optionsAnnotation .= ' "default":' . $oField->default . ',';
+                            }
+
+                            $optionsAnnotation = substr($optionsAnnotation, 0, -1);
+                            $optionsAnnotation .= '}';
+                        }
+
+                        $sContentFile .= '
 	/**
-	 * '.$sFieldName.'
+	 * @var '.$sType.'
 	 *
-	 * @access private
-	 * @var    '.$sType.'
-	 *
+     * @ORM\Column(name="'.$sFieldName.'", type="'.$oField->type.'"'.$optionsAnnotation.
+                    ''.($oField->type === 'enum'?', columnDefinition="\''.implode('\',\'', $oField->values).'\'"':'').
+                    ''.(isset($oField->value)?', length='.$oField->value:'').
+                    ''.(isset($oField->precision)?', precision='.$oField->precision:'').
+                    ''.(isset($oField->scale)?', scale='.$oField->scale:'').
+                    ''.(isset($oField->key) && $oField->key == 'unique'?', unique=true':'').
+                    ''.(isset($oField->null) && $oField->null === true?', nullable=true':', nullable=false').
+                            ')
 ';
-	
+
 						if (isset($oField->key) && $oField->key == 'primary') {
 	
-							$sContentFile .= '	 * @primary_key'."\n";
+							$sContentFile .= '	 * @ORM\Id'."\n";
 						}
+
+                        if (isset($oField->autoincrement) && $oField->autoincrement === true) {
+
+                            $sContentFile .= '	 * @ORM\GeneratedValue(strategy="AUTO")'."\n";
+                        }
 	
 						if (isset($oField->property)) {
 	
-							$sContentFile .= '	 * @map '.$oField->property.''."\n";
-						}
+							//$sContentFile .= '	 * @map '.$oField->property.''."\n";
+                            $entityFieldName = $oField->property;
+						} else {
+                            $entityFieldName = $sFieldName;
+                        }
 	
 						$sContentFile .= '	 */
-    private $'.$sFieldName.' = null;
+    private $'.$entityFieldName.''.(isset($oField->default)?' = '.$oField->default:'').';
 	';
 						if (isset($oField->join)) {
 	
@@ -546,19 +661,13 @@ class '.$sTableName.' extends Entity
 						    
 						        if (isset($oField->join_alias[$i])) { $sJoinUsedName = $oField->join_alias[$i]; }
 							    else { $sJoinUsedName = $oField->join[$i]; }
-	
+
 								$sContentFile .= '
 	/**
-	 * '.$sJoinUsedName.' Entity
-	 *
-	 * @access private
-	 * @var    '.$oField->join[$i].'
-	 * @join
-	 *
+	 * @ORM\OneToMany(target="'.$sJoinUsedName.'", targetField="'.$oField->join_by_field[0].'", mappedBy="'.$sTableName.'", cascade={"remove", "persist"}, fetch="EAGER")
 	 */
     private $'.$sJoinUsedName.' = null;
-	
-	
+
 	';
 						    }
 						}
@@ -600,24 +709,18 @@ class '.$sTableName.' extends Entity
 	
 						$sContentFile .= '
 	/**
-	 * get '.$sFieldName.' of '.$sTableName.'
-	 *
-	 * @access public
 	 * @return '.$sType.'
 	 */
-	public function get_'.$sFieldName.'()
+	public function get_'.$sFieldName.'() : '.$sType.'
 	{
 		return $this->'.$sFieldName.';
 	}
 
 	/**
-	 * set '.$sFieldName.' of '.$sTableName.'
-	 *
-	 * @access public
-	 * @param  '.$sType.' $'.$sFieldName.' '.$sFieldName.' of '.$sTableName.'
+	 * @param  '.$sType.' $'.$sFieldName.' 
 	 * @return '.ENTITY_NAMESPACE.'\\'.$sTableName.'
 	 */
-	public function set_'.$sFieldName.'($'.$sFieldName.') 
+	public function set_'.$sFieldName.'('.$sType.' $'.$sFieldName.') 
 	{
 		$this->'.$sFieldName.' = $'.$sFieldName.';
 		return $this;
@@ -649,11 +752,9 @@ class '.$sTableName.' extends Entity
     	
     							$sContentFile .= '
 	/**
-	 * get '.$sJoinUsedName.' entity join by '.$sFieldName.' of '.$sTableName.'
+	 * get '.$sJoinUsedName.'
 	 *
-	 * @access public
 	 * @param  array $aWhere
-	 * @join
 	 * @return ';
 								
     							$sKey2 = '';
@@ -691,16 +792,16 @@ class '.$sTableName.' extends Entity
     			                     
     							$sContentFile .= '
 	 */
-	public function get_'.$sJoinUsedName.'($aWhere = array())
+	public function get_'.$sJoinUsedName.'(array $where = array())
 	{
 		if ($this->'.$sJoinUsedName.' === null) {
 
-			$oOrm = new Orm;
+			$orm = new Orm;
 
-			$oOrm->select(array(\'*\'))
-				 ->from(\''.$oField->join[$i].'\');
+			$orm->select(array(\'*\'))
+			    ->from(\''.$oField->join[$i].'\');
 												   
-	        $aWhere[\''.$sJoinByField.'\'] = $this->get_'.$sFieldName.'();
+	        $where[\''.$sJoinByField.'\'] = $this->get_'.$sFieldName.'();
 											
 													  ';
 								
@@ -737,11 +838,10 @@ class '.$sTableName.' extends Entity
 	}
 	
 	/**
-	 * set '.$sJoinUsedName.' entity join by '.$sFieldName.' of '.$sTableName.'
+	 * set '.$sJoinUsedName.' 
 	 *
-	 * @access public
 	 * @param  '.ENTITY_NAMESPACE.'\\'.$oField->join[$i].'  $'.$sJoinUsedName.' '.$oField->join[$i].' entity
-	 * @join
+	 * 
 	 * @return ';
 		 
     							if (isset($oField->key) && ($oField->key == 'primary' || (is_array($oField->key) && in_array('primary', $oField->key)))) { 
@@ -766,7 +866,7 @@ class '.$sTableName.' extends Entity
     							    $sContentFile .= ENTITY_NAMESPACE.'\\'.$oField->join[$i];
     							}
 			                     
-							    $sContentFile .= ' $'.$sJoinUsedName.')
+							    $sContentFile .= ' $'.$sJoinUsedName.') : '.$sTableName.'
 	{
 		$this->'.$sJoinUsedName.' = $'.$sJoinUsedName.';
 		return $this;
@@ -830,4 +930,159 @@ class '.$sTableName.' extends Model
         echo Bash::setBackground("                                                                            ", 'green');
         echo "\n\n";
 	}
+
+    /**
+     * @param string $tableName
+     * @param string $fieldName
+     * @param array $tableContent
+     * @param string $action
+     * @return string
+     */
+    private function createFieldByArray(string $tableName, string $fieldName, array $tableContent, string $action) : string  {
+
+        $field = 'ALTER TABLE ' . SQL_FIELD_NAME_SEPARATOR . $tableName . SQL_FIELD_NAME_SEPARATOR . ' '.$action.' ' . SQL_FIELD_NAME_SEPARATOR . $fieldName . SQL_FIELD_NAME_SEPARATOR . ' ' . $tableContent['type'];
+
+        if ($tableContent['value']) {
+
+            $field .= '(' . $tableContent['value'] . ') ';
+        }
+
+        if ($tableContent['unsigned']) {
+
+            $field .= ' UNSIGNED ';
+        }
+
+        if ($tableContent['null']) {
+            $field .= ' NULL ';
+        } else {
+            $field .= ' NOT NULL ';
+        }
+
+        if ($tableContent['default']) {
+            $field .= ' DEFAULT "' . $tableContent['default'] . '" ';
+        }
+
+
+        if ($tableContent['extra'] === 'auto_increment') {
+
+            $field .= ' AUTO_INCREMENT ';
+        }
+
+        return $field;
+    }
+
+    /**
+     * @param string $sqlJsonFile
+     * @param string $entitiesPath
+     */
+    private function constructConfFileOfEntities(string $sqlJsonFile, string $entitiesPath) {
+
+        $entitiesPath = substr($entitiesPath, 0, -1);
+        $files = scandir($entitiesPath);
+        $readerPhpdoc = new Reader;
+
+        foreach (explode(';', $sqlJsonFile) as $one) {
+
+            $jsonFileObject =  json_decode(file_get_contents($one));
+
+            foreach ($files as $oneFile) {
+
+                $tableName = str_replace('.php', '', $oneFile);
+
+                if (filemtime($entitiesPath.DIRECTORY_SEPARATOR.$oneFile) > filemtime($one) && $oneFile !== '.' && $oneFile !== '..') {
+
+                    $className = preg_replace('#^.+\\\\..\\\\bundles(\\\\.+)\.php$#', '\\Venus$1', str_replace(DIRECTORY_SEPARATOR, '\\', $entitiesPath.DIRECTORY_SEPARATOR.$oneFile));
+                    $className =  str_replace('\\app', '', $className);
+
+                    $reflectionClass  = new \ReflectionClass($className);
+                    $reflectionProperties = $reflectionClass->getProperties();
+
+                    foreach ($reflectionProperties as $oneProperty) {
+
+                        $phpDocProperty = $readerPhpdoc->getPhpDocOfProperty($className, $oneProperty->name);
+                        $result = new \stdClass();
+
+                        if (isset($phpDocProperty['ORM\\Column'])
+                            && isset($jsonFileObject->configuration->tables->{$tableName}->fields->{$phpDocProperty['ORM\\Column']['name']})){
+
+                            if ($phpDocProperty['ORM\\Column']['type'] == "enum"
+                                && isset($phpDocProperty['ORM\\Column']['columnDefinition'])) {
+
+                                $result->values = explode(",", $phpDocProperty['ORM\\Column']['columnDefinition']);
+                            }
+
+                            if ($phpDocProperty['ORM\\Column']['type'] == "decimal"
+                                && isset($phpDocProperty['ORM\\Column']['precision'])
+                                && isset($phpDocProperty['ORM\\Column']['scale'])) {
+
+                                $result->precision = $phpDocProperty['ORM\\Column']['precision'];
+                                $result->scale = $phpDocProperty['ORM\\Column']['scale'];
+                            }
+
+                            $result->type = $phpDocProperty['ORM\\Column']['type'];
+
+                            if (isset($phpDocProperty['ORM\\Column']['length'])) {
+                                $result->value = $phpDocProperty['ORM\\Column']['length'];
+                            }
+
+                            if (isset($phpDocProperty['ORM\\Column']['unique']) && $phpDocProperty['ORM\\Column']['unique'] == true) {
+                                $result->key = 'unique';
+                            }
+
+                            if (isset($phpDocProperty['ORM\\Column']['nullable']) && $phpDocProperty['ORM\\Column']['nullable'] === true) {
+                                $result->null = true;
+                            }
+                            else  {
+                                $result->null = false;
+                            }
+
+                            if (isset($phpDocProperty['ORM\\Column']['options'])
+                                && isset($phpDocProperty['ORM\\Column']['options']->unsigned)) {
+
+                                $result->unsigned = $phpDocProperty['ORM\\Column']['options']->unsigned;
+                            }
+
+                            if (isset($phpDocProperty['ORM\\Column']['options'])
+                                && isset($phpDocProperty['ORM\\Column']['options']->default)) {
+
+                                $result->default = $phpDocProperty['ORM\\Column']['options']->default;
+                            }
+
+                            $nameField = $phpDocProperty['ORM\\Column']['name'];
+                            //var_dump(1,$readerPhpdoc->getPhpDocOfProperty($className, $oneProperty->name));
+                            //var_dump($result);
+                            //var_dump($jsonFileObject->configuration->tables->{$tableName}->fields->{$oneProperty->name});
+                        }
+
+                        if (isset($phpDocProperty['ORM\\Id'])) {
+                            $result->key = "primary";
+                        }
+
+                        if (isset($phpDocProperty['ORM\\GeneratedValue'])) {
+
+                            $result->autoincrement = true;
+                        }
+
+                        if (isset($phpDocProperty['ORM\\OneToMany'])) {
+
+                            $result = $jsonFileObject->configuration->tables->{$tableName}->fields->{$nameField};
+
+                            $result->join = $phpDocProperty['ORM\\OneToMany']["target"];
+                            $result->join_by_field = $phpDocProperty['ORM\\OneToMany']["targetField"];
+
+                            if (strstr($phpDocProperty['ORM\\OneToMany']["cascade"], "remove")) {
+                                $result->join_delete = 'cascade';
+                            }
+                            else if (strstr($phpDocProperty['ORM\\OneToMany']["cascade"], "insert")) {
+                                $result->join_update = 'update';
+                            }
+                        }
+
+                        $jsonFileObject->configuration->tables->{$tableName}->fields->{$nameField} = $result;
+                    }
+                    file_put_contents($one, json_encode($jsonFileObject, JSON_PRETTY_PRINT));
+                }
+            }
+        }
+    }
 }
