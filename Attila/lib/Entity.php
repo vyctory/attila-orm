@@ -164,11 +164,11 @@ class Entity
 
             $sDoc = $oProperty->getDocComment();
 
-            if (strstr($sDoc, '@primary_key') && preg_match('/@map ([a-zA-Z_]+)/', $sDoc, $aMatch)) {
+            if (strstr($sDoc, '@ORM\Id') && preg_match('/@map ([a-zA-Z_]+)/', $sDoc, $aMatch)) {
 
                 $aEntitieSetup[] = $aMatch[1];
             }
-            else if (strstr($sDoc, '@primary_key')) {
+            else if (strstr($sDoc, '@ORM\Id')) {
 
                 $aEntitieSetup[] = $oProperty->getName();
             }
@@ -197,7 +197,7 @@ class Entity
 
             $sDoc = $oProperty->getDocComment();
 
-            if (strstr($sDoc, '@primary_key')) {
+            if (strstr($sDoc, '@ORM\Id')) {
 
                 $aEntitieSetup[] = $oProperty->getName();
             }
@@ -256,12 +256,12 @@ class Entity
 
             $sDoc = $oProperty->getDocComment();
 
-            if (preg_match('/@map ([a-zA-Z_]+)/', $sDoc, $aMatch) && !preg_match('/@join/', $sDoc)) {
+            if (preg_match('/@map ([a-zA-Z_]+)/', $sDoc, $aMatch) && !preg_match('/@ORM.OneTOMany/', $sDoc)) {
 
                 $sMethodName = 'get_'.$oProperty->getName();
                 $oEntitieSetup->$aMatch[1] = $oEntity->$sMethodName();
             }
-            else if (!preg_match('/@join/', $sDoc)) {
+            else if (!preg_match('/@ORM.OneTOMany/', $sDoc)) {
 
                 $sMethodName = 'get_'.$oProperty->getName();
                 $sPropertyName = $oProperty->getName();

@@ -146,7 +146,7 @@ abstract class Entity
 
         if ($mPrimaryKeyName === false) {
 
-            throw new Exception('['.__FILE__.' (l.'.__LINE__.'] no primary key on this table!');
+            throw new \Exception('['.__FILE__.' (l.'.__LINE__.'] no primary key on this table!');
         }
         else if (is_string($mPrimaryKeyName)) {
 
@@ -310,6 +310,11 @@ abstract class Entity
                 ->set($aEntity)
                 ->where($aPrimaryKey)
                 ->save();
+        }
+
+        if (is_string(LibEntity::getPrimaryKeyName($this))) {
+            $methodName = 'set_'.LibEntity::getPrimaryKeyName($this);
+            $this->$methodName($iResults);
         }
 
         return $iResults;

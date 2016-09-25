@@ -700,7 +700,7 @@ class '.$sTableName.' extends Entity
 	/**
 	 * @return '.$sType.'
 	 */
-	public function get_'.$sFieldName.'() : '.$sType.'
+	public function get_'.$sFieldName.'() '.(isset($oField->key) && $oField->key !== 'primary'?' : '.$sType:'').'
 	{
 		return $this->'.$sFieldName.';
 	}
@@ -809,7 +809,7 @@ class '.$sTableName.' extends Entity
                                 $sContentFile .= '$aResult';
                             }
 
-                            $sContentFile .= ' = $oOrm->where($aWhere)
+                            $sContentFile .= ' = $orm->where($where)
 						           ->load(false, \''.ENTITY_NAMESPACE.'\\\\\');';
 
                             if ((!isset($oField->key) || (isset($oField->key) && $oField->key != 'primary'
@@ -1038,9 +1038,6 @@ class '.$sTableName.' extends Model
                             }
 
                             $nameField = $phpDocProperty['ORM\\Column']['name'];
-                            //var_dump(1,$readerPhpdoc->getPhpDocOfProperty($className, $oneProperty->name));
-                            //var_dump($result);
-                            //var_dump($jsonFileObject->configuration->tables->{$tableName}->fields->{$oneProperty->name});
                         }
 
                         if (isset($phpDocProperty['ORM\\Id'])) {
