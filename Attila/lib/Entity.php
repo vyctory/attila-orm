@@ -3,287 +3,272 @@
 /**
  * Manage entities
  *
- * @category  	Attila
- * @package  	Attila\lib
  * @author    	Judicaël Paquet <judicael.paquet@gmail.com>
- * @copyright 	Copyright (c) 2013-2014 PAQUET Judicaël FR Inc. (https://github.com/las93)
- * @license   	https://github.com/las93/attila/blob/master/LICENSE.md Tout droit réservé à PAQUET Judicaël
+ * @copyright 	Copyright (c) 2013-2014 PAQUET Judicaël FR Inc. (https://github.com/judicaelpaquet)
+ * @license   	https://github.com/vyctory/attila-orm/blob/master/LICENSE.md Tout droit réservé à PAQUET Judicaël
  * @version   	Release: 1.0.0
- * @filesource	https://github.com/las93/attila
- * @link      	https://github.com/las93
+ * @filesource	https://github.com/vyctory/attila-orm
+ * @link      	https://github.com/vyctory
  * @since     	1.0.0
  */
 namespace Attila\lib;
 
-/**
- * This class manage the entities
- *
- * @category  	Attila
- * @package  	Attila\lib
- * @author    	Judicaël Paquet <judicael.paquet@gmail.com>
- * @copyright 	Copyright (c) 2013-2014 PAQUET Judicaël FR Inc. (https://github.com/las93)
- * @license   	https://github.com/las93/attila/blob/master/LICENSE.md Tout droit réservé à PAQUET Judicaël
- * @version   	Release: 1.0.0
- * @filesource	https://github.com/las93/attila
- * @link      	https://github.com/las93
- * @since     	1.0.0
- */
-class Entity 
+class Entity
 {
-	/**
-	 * Namespace of your domain
-	 * @access private
-	 * @var    string
-	 */
-	private static $_sEntityNamespace;
+    /**
+     * Namespace of your domain
+     * @access private
+     * @var    string
+     */
+    private static $_sEntityNamespace;
 
-	/**
-	 * add the namespace
-	 *
-	 * @access public
-	 * @param  string $sEntityNamespace set the entity namespace
-	 * @return void
-	 */
-	public static function setEntityNamespace($sEntityNamespace) 
-	{
-	    self::$_sEntityNamespace = $sEntityNamespace;
-	}
+    /**
+     * add the namespace
+     *
+     * @access public
+     * @param  string $sEntityNamespace set the entity namespace
+     * @return void
+     */
+    public static function setEntityNamespace($sEntityNamespace)
+    {
+        self::$_sEntityNamespace = $sEntityNamespace;
+    }
 
-	/**
-	 * auto load the domain by a sql return
-	 *
-	 * exemple :
-	 *  	autoLoadDomain('GenericUpdate', array('Generic_Message' => 'OK', 'Generic_Result' => 1), 'Generic');
-	 *
-	 *  A domain is an container of properties, getters and setters without crud methods (just a container)
-	 *
-	 *  You could give an object in entry!!!
-	 *
-	 * @access public
-	 * @param  string $sEntity domain that we want load
-	 * @param  array $aSql results in array by the sql array('id' => 1, 'title' => 'super');
-	 * @param  string $sPrefix prefixe for the sql returns
-	 * @param  bool $bAddOnStdClass add the parameter when there arent method of entity
-	 * @param  string $sEntityNamespace change the default portal for the entity
-	 * @return object
-	 */
-	public static function autoLoadEntity($sEntity, array $aSql, $sPrefix = '', $bAddOnStdClass = false, $sEntityNamespace = null) 
-	{
-		if ($sEntity === '') { return; }
+    /**
+     * auto load the domain by a sql return
+     *
+     * exemple :
+     *  	autoLoadDomain('GenericUpdate', array('Generic_Message' => 'OK', 'Generic_Result' => 1), 'Generic');
+     *
+     *  A domain is an container of properties, getters and setters without crud methods (just a container)
+     *
+     *  You could give an object in entry!!!
+     *
+     * @access public
+     * @param  string $sEntity domain that we want load
+     * @param  array $aSql results in array by the sql array('id' => 1, 'title' => 'super');
+     * @param  string $sPrefix prefixe for the sql returns
+     * @param  bool $bAddOnStdClass add the parameter when there arent method of entity
+     * @param  string $sEntityNamespace change the default portal for the entity
+     * @return object
+     */
+    public static function autoLoadEntity($sEntity, array $aSql, $sPrefix = '', $bAddOnStdClass = false, $sEntityNamespace = null)
+    {
+        if ($sEntity === '') { return; }
 
-		if ($sEntityNamespace !== null) {
-			
-			self::setEntityNamespace($sEntityNamespace);
-		}
-			
-		$sEntityName = self::$_sEntityNamespace.$sEntity;
+        if ($sEntityNamespace !== null) {
 
-		if (!class_exists($sEntityName)) { return; }
+            self::setEntityNamespace($sEntityNamespace);
+        }
 
-		$oEntityCall = new $sEntityName;
-		$oReflectionClass = new \ReflectionClass($sEntityName);
-		$oReflectionProperties = $oReflectionClass->getProperties();
+        $sEntityName = self::$_sEntityNamespace.$sEntity;
 
-		foreach ($oReflectionProperties as $aProperty) {
+        if (!class_exists($sEntityName)) { return; }
 
-			if (preg_match('/@map ([a-zA-Z_]+)/', $aProperty->getDocComment(), $aMatch)) {
+        $oEntityCall = new $sEntityName;
+        $oReflectionClass = new \ReflectionClass($sEntityName);
+        $oReflectionProperties = $oReflectionClass->getProperties();
 
-				$sEntitieRealName = $aMatch[1];
-			}
-			else {
+        foreach ($oReflectionProperties as $aProperty) {
 
-				$sEntitieRealName = $aProperty->getName();
-			}
+            if (preg_match('/@map ([a-zA-Z_]+)/', $aProperty->getDocComment(), $aMatch)) {
 
-			if (method_exists($oEntityCall, 'set_'.$aProperty->getName())) {
+                $sEntitieRealName = $aMatch[1];
+            }
+            else {
 
-				if (isset($aSql[$sPrefix.$sEntitieRealName])) {
+                $sEntitieRealName = $aProperty->getName();
+            }
 
-					$sMethodName = 'set_'.$aProperty->getName();
-					$oEntityCall->$sMethodName($aSql[$sPrefix.$sEntitieRealName]);
-				}
-			}
-		}
+            if (method_exists($oEntityCall, 'set_'.$aProperty->getName())) {
 
-		if ($bAddOnStdClass === true) {
+                if (isset($aSql[$sPrefix.$sEntitieRealName])) {
 
-			foreach ($aSql as $sKey => $asField) {
+                    $sMethodName = 'set_'.$aProperty->getName();
+                    $oEntityCall->$sMethodName($aSql[$sPrefix.$sEntitieRealName]);
+                }
+            }
+        }
 
-				if (preg_match('/^\.[^.]+$/', $sKey)) {
+        if ($bAddOnStdClass === true) {
 
-					$sParameterName = str_replace('.', '', $sKey);
-					$oEntityCall->$sParameterName = $aSql[$sKey];
-				}
-			}
-		}
+            foreach ($aSql as $sKey => $asField) {
 
-		return $oEntityCall;
-	}
+                if (preg_match('/^\.[^.]+$/', $sKey)) {
 
-	/**
-	 * get all field of entity in array
-	 *
-	 * @access public
-	 * @param  object $oEntityCall domain that we want load
-	 * @param  bool $bReturnNotNulOnly if we return the null response
-	 * @return array
-	 */
-	public static function getAllEntity($oEntityCall, $bReturnNotNulOnly = false)
-	{
-		if (!is_object($oEntityCall)) { return array(); }
+                    $sParameterName = str_replace('.', '', $sKey);
+                    $oEntityCall->$sParameterName = $aSql[$sKey];
+                }
+            }
+        }
 
-		$oReflectionClass = new \ReflectionClass(get_class($oEntityCall));
-		$oReflectionMethod = $oReflectionClass->getMethods();
-		$aFieldsToReturn = array();
+        return $oEntityCall;
+    }
 
-		foreach ($oReflectionMethod as $aMethod) {
+    /**
+     * get all field of entity in array
+     *
+     * @access public
+     * @param  object $oEntityCall domain that we want load
+     * @param  bool $bReturnNotNulOnly if we return the null response
+     * @return array
+     */
+    public static function getAllEntity($oEntityCall, $bReturnNotNulOnly = false)
+    {
+        if (!is_object($oEntityCall)) { return array(); }
 
-			if (preg_match('/^get_[a-zA-Z_]+/', $aMethod->getName())) {
+        $oReflectionClass = new \ReflectionClass(get_class($oEntityCall));
+        $oReflectionMethod = $oReflectionClass->getMethods();
+        $aFieldsToReturn = array();
 
-				$sMethodsCall = $aMethod->getName();
-				$sFieldName = preg_replace('/^get_/', '', $aMethod->getName());
+        foreach ($oReflectionMethod as $aMethod) {
 
-				if ($oEntityCall->$sMethodsCall() !== null || ($oEntityCall->$sMethodsCall() === null
-					&& $bReturnNotNulOnly === false)) {
+            if (preg_match('/^get_[a-zA-Z_]+/', $aMethod->getName())) {
 
-					$aFieldsToReturn[$sFieldName] = $oEntityCall->$sMethodsCall();
-				}
-			}
-		}
+                $sMethodsCall = $aMethod->getName();
+                $sFieldName = preg_replace('/^get_/', '', $aMethod->getName());
 
-		$oReflectionProperties = $oReflectionClass->getProperties();
+                if ($oEntityCall->$sMethodsCall() !== null || ($oEntityCall->$sMethodsCall() === null
+                        && $bReturnNotNulOnly === false)) {
 
-		foreach ($oEntityCall as $sKey => $aProperty) {
+                    $aFieldsToReturn[$sFieldName] = $oEntityCall->$sMethodsCall();
+                }
+            }
+        }
 
-			$aFieldsToReturn[$sKey] = self::getAllEntity($aProperty, $bReturnNotNulOnly);
-		}
+        $oReflectionProperties = $oReflectionClass->getProperties();
 
-		return $aFieldsToReturn;
-	}
+        foreach ($oEntityCall as $sKey => $aProperty) {
 
-	/**
-	 * get a real entity (with all parameters)
-	 *
-	 * @access public
-	 * @param  object $oEntity entity that we want analyze
-	 * @return mixed
-	 */
-	public static function getPrimaryKeyName($oEntity)
-	{
-		$aEntitieSetup = array();
+            $aFieldsToReturn[$sKey] = self::getAllEntity($aProperty, $bReturnNotNulOnly);
+        }
 
-		$oReflectionClass = new \ReflectionClass($oEntity);
-		$oProperties   = $oReflectionClass->getProperties();
+        return $aFieldsToReturn;
+    }
 
-		foreach ($oProperties as $oProperty) {
+    /**
+     * get a real entity (with all parameters)
+     *
+     * @access public
+     * @param  object $oEntity entity that we want analyze
+     * @return mixed
+     */
+    public static function getPrimaryKeyName($oEntity)
+    {
+        $aEntitieSetup = array();
 
-		    $sDoc = $oProperty->getDocComment();
+        $oReflectionClass = new \ReflectionClass($oEntity);
+        $oProperties   = $oReflectionClass->getProperties();
 
-		    if (strstr($sDoc, '@primary_key') && preg_match('/@map ([a-zA-Z_]+)/', $sDoc, $aMatch)) {
+        foreach ($oProperties as $oProperty) {
 
-		    	$aEntitieSetup[] = $aMatch[1];
-		    }
-		    else if (strstr($sDoc, '@primary_key')) {
+            $sDoc = $oProperty->getDocComment();
 
-		    	$aEntitieSetup[] = $oProperty->getName();
-		    }
-		}
+            if (strstr($sDoc, '@primary_key') && preg_match('/@map ([a-zA-Z_]+)/', $sDoc, $aMatch)) {
 
-		if (count($aEntitieSetup) == 0) { return false; }
-		else if (count($aEntitieSetup) == 1) { return $aEntitieSetup[0]; }
-		else { return $aEntitieSetup; }
-	}
+                $aEntitieSetup[] = $aMatch[1];
+            }
+            else if (strstr($sDoc, '@primary_key')) {
 
-	/**
-	 * get a real entity (with all parameters)
-	 *
-	 * @access public
-	 * @param  object $oEntity entity that we want analyze
-	 * @return mixed
-	 */
-	public static function getPrimaryKeyNameWithoutMapping($oEntity)
-	{
-		$aEntitieSetup = array();
+                $aEntitieSetup[] = $oProperty->getName();
+            }
+        }
 
-		$oReflectionClass = new \ReflectionClass($oEntity);
-		$oProperties   = $oReflectionClass->getProperties();
+        if (count($aEntitieSetup) == 0) { return false; }
+        else if (count($aEntitieSetup) == 1) { return $aEntitieSetup[0]; }
+        else { return $aEntitieSetup; }
+    }
 
-		foreach ($oProperties as $oProperty) {
+    /**
+     * get a real entity (with all parameters)
+     *
+     * @access public
+     * @param  object $oEntity entity that we want analyze
+     * @return mixed
+     */
+    public static function getPrimaryKeyNameWithoutMapping($oEntity)
+    {
+        $aEntitieSetup = array();
 
-			$sDoc = $oProperty->getDocComment();
+        $oReflectionClass = new \ReflectionClass($oEntity);
+        $oProperties   = $oReflectionClass->getProperties();
 
-			if (strstr($sDoc, '@primary_key')) {
+        foreach ($oProperties as $oProperty) {
 
-		    	$aEntitieSetup[] = $oProperty->getName();
-		    }
-		}
+            $sDoc = $oProperty->getDocComment();
 
-		if (count($aEntitieSetup) == 0) { return false; }
-		else if (count($aEntitieSetup) == 1) { return $aEntitieSetup[0]; }
-		else { return $aEntitieSetup; }
-	}
+            if (strstr($sDoc, '@primary_key')) {
 
-	/**
-	 * get a real entity (with all parameters)
-	 *
-	 * @access public
-	 * @param  object $oEntity entity that we want analyze
-	 * @return array
-	 */
-	public static function getNoPrimaryKeyFields($oEntity)
-	{
-		$aEntitieSetup = array();
+                $aEntitieSetup[] = $oProperty->getName();
+            }
+        }
 
-		$oReflectionClass = new \ReflectionClass($oEntity);
-		$oProperties   = $oReflectionClass->getProperties();
+        if (count($aEntitieSetup) == 0) { return false; }
+        else if (count($aEntitieSetup) == 1) { return $aEntitieSetup[0]; }
+        else { return $aEntitieSetup; }
+    }
 
-		foreach ($oProperties as $oProperty) {
+    /**
+     * get a real entity (with all parameters)
+     *
+     * @access public
+     * @param  object $oEntity entity that we want analyze
+     * @return array
+     */
+    public static function getNoPrimaryKeyFields($oEntity)
+    {
+        $aEntitieSetup = array();
 
-		    $sDoc = $oProperty->getDocComment();
+        $oReflectionClass = new \ReflectionClass($oEntity);
+        $oProperties   = $oReflectionClass->getProperties();
 
-		    if (!strstr($sDoc, '@primary_key') && preg_match('/@map ([a-zA-Z_]+)/', $sDoc, $aMatch)) {
+        foreach ($oProperties as $oProperty) {
 
-		    	$aEntitieSetup[$aMatch[1]] = $oProperty->getValue();
-		    }
-		    else if (!strstr($sDoc, '@primary_key')) {
+            $sDoc = $oProperty->getDocComment();
 
-		    	$aEntitieSetup[$oProperty->getName()] = $oProperty->getValue();
-		    }
-		}
+            if (!strstr($sDoc, '@primary_key') && preg_match('/@map ([a-zA-Z_]+)/', $sDoc, $aMatch)) {
 
-		$aEntitieSetup;
-	}
+                $aEntitieSetup[$aMatch[1]] = $oProperty->getValue();
+            }
+            else if (!strstr($sDoc, '@primary_key')) {
 
-	/**
-	 * get a real entity (with all parameters)
-	 *
-	 * @param object $oEntity entity that we want analyze
-	 * return
-	 */
-	public static function getRealEntity($oEntity) 
-	{
-		$oEntitieSetup = new \stdClass;
+                $aEntitieSetup[$oProperty->getName()] = $oProperty->getValue();
+            }
+        }
 
-		$oReflectionClass = new \ReflectionClass($oEntity);
-		$oProperties   = $oReflectionClass->getProperties();
+        $aEntitieSetup;
+    }
 
-		foreach ($oProperties as $oProperty) {
+    /**
+     * get a real entity (with all parameters)
+     *
+     * @param object $oEntity entity that we want analyze
+     * return
+     */
+    public static function getRealEntity($oEntity)
+    {
+        $oEntitieSetup = new \stdClass;
 
-		    $sDoc = $oProperty->getDocComment();
+        $oReflectionClass = new \ReflectionClass($oEntity);
+        $oProperties   = $oReflectionClass->getProperties();
 
-		    if (preg_match('/@map ([a-zA-Z_]+)/', $sDoc, $aMatch) && !preg_match('/@join/', $sDoc)) {
+        foreach ($oProperties as $oProperty) {
 
-		    	$sMethodName = 'get_'.$oProperty->getName();
-		    	$oEntitieSetup->$aMatch[1] = $oEntity->$sMethodName();
-		    }
-		    else if (!preg_match('/@join/', $sDoc)) {
+            $sDoc = $oProperty->getDocComment();
 
-		    	$sMethodName = 'get_'.$oProperty->getName();
-		    	$sPropertyName = $oProperty->getName();
-		    	$oEntitieSetup->$sPropertyName = $oEntity->$sMethodName();
-		    }
-		}
+            if (preg_match('/@map ([a-zA-Z_]+)/', $sDoc, $aMatch) && !preg_match('/@join/', $sDoc)) {
 
-		return $oEntitieSetup;
-	}
+                $sMethodName = 'get_'.$oProperty->getName();
+                $oEntitieSetup->$aMatch[1] = $oEntity->$sMethodName();
+            }
+            else if (!preg_match('/@join/', $sDoc)) {
+
+                $sMethodName = 'get_'.$oProperty->getName();
+                $sPropertyName = $oProperty->getName();
+                $oEntitieSetup->$sPropertyName = $oEntity->$sMethodName();
+            }
+        }
+
+        return $oEntitieSetup;
+    }
 }

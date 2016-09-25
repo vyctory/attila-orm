@@ -41,15 +41,20 @@
         une commande qui va transformer votre fichier de configuration en table (sql) et en entité (php).<br/><br/>
 
         <pre>
-            php index.php scaffolding:run -v -p HomeBundle -c <span style="color:green"><small>(v2.0.0)</small></span>
+            php index.php scaffolding:run -v -p HomeBundle -c
             (ou sur Venus 3)
-            php bin/console  scaffolding:run -v -p HomeBundle -c <span style="color:green"><small>(v2.0.0)</small></span>
+            php bin/console  scaffolding:run -v -p HomeBundle -c
         </pre>
 
         L'option -v permet d'afficher les requêtes SQL qui ne seront pas insérées pour une dernière vérification. Si
-        vous enlevez cette option, les requêtes SQL seront exécutées dans votre base de données.<br/><br/>
+        vous enlevez cette option, les requêtes SQL seront exécutées dans votre base de données.
+        <span style="color:red"><small>[v2.0.0]</small></span><br/><br/>
         Attila permet de lister les requêtes SQL qu’il va faire avec l’option -v combinée à l’option -e sans les
-        éxécuter.
+        éxécuter.<br/><br/>
+
+        Le scaffolding reconnait l'état des tables et fait à présent également les alter table nécessaires. Du coup
+        la suppression des tables n'est plsu disponible par sécurité.
+        <span style="color:red"><small>[v2.0.0]</small></span><br/><br/>
 
         <a href="entites_et_models.html">[suivant]</a>
     </body>

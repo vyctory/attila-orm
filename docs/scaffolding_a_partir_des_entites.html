@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en-us">
+    <head>
+        <meta charset="UTF-8">
+        <title>Scaffolding à partir des entités sur Attila</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <link rel="stylesheet" type="text/css" href="stylesheets/normalize.css" media="screen">
+        <link href='https://fonts.googleapis.com/css?family=Open+Sans:400,700' rel='stylesheet' type='text/css'>
+        <link rel="stylesheet" type="text/css" href="stylesheets/stylesheet.css" media="screen">
+        <link rel="stylesheet" type="text/css" href="stylesheets/github-light.css" media="screen">
+    </head>
+    <body>
+    <section class="page-header">
+        <h1 class="project-name">Scaffolding à partir des entités sur Attila</h1>
+        <h2 class="project-tagline">Attila est un ORM PHP</h2>
+        <a href="https://github.com/vyctory/venusframework" class="btn">Vu sur GitHub</a>
+        <a href="https://github.com/vyctory/venusframework/zipball/master" class="btn">Télécharger .zip</a>
+        <a href="https://github.com/vyctory/venusframework/tarball/master" class="btn">Télécharger .tar.gz</a>
+    </section>
+
+    <section class="main-content">
+
+        <a href="les_joins.html">[précédent]</a>
+
+        <h3>
+            <a id="welcome-to-github-pages" class="anchor" href="#welcome-to-github-pages" aria-hidden="true">
+                <span aria-hidden="true" class="octicon octicon-link"></span>
+            </a>Scaffolding à partir des entités</h3>
+
+        Grosse nouveauté de la version 2 d'Attila est de permettre de gérer vos tables à partir deds entités directement
+        et non plus forcément du fichier de configuration. Sur les entités, vous pourrez définir par exemple définir le
+        nom de la table et le nom du modèle associé comme ceci :<br/><br/>
+
+        <pre>
+/**
+ * @ORM\Table(name="user")
+ * @ORM\Entity(repositoryClass="Venus\src\Authentification\Model\user")
+ */
+class user extends Entity</pre>
+
+        Pour le moment c'est automatisé mais cela permettra rapidement d'avori un nom d'entité différent de celui de la
+        base de données et également de ne pas avoir forcément le même nom de modèle.<br/><br/>
+        Vous pourrez également définir le contenu d'un champ comme ceci :<br/><br/>
+
+        <pre>
+    /**
+	 * @var int
+	 *
+     * @ORM\Column(name="id", type="int", option={"unsigned":true})
+	 * @ORM\Id
+	 * @ORM\GeneratedValue(strategy="AUTO")
+	 */
+    private $id = null;</pre>
+
+        Attention à ne pas vous tromper, sinon cela aura plusieurs impacts : fichier de configuration modifié et la
+        table associée sera modifiée. Vous comprendrez aisément les risques de modifier une entité sans avoir un minimum
+        de rigueur.<br/><br/>
+        @ORM\Id => permet de définir que notre champ sera la clé primaire de notre table. Il est tout a fait possible
+        de définir une clé multiple en en mettant plusieurs.<br/><br/>
+        @ORM\GeneratedValue(strategy="AUTO") => permet de mettre votre champ en auto_increment soit pour que votre
+        champ se remplisse tout seul avec un identifiant unique.<br/><br/>
+        @ORM\Column est plus complexe car sa définition est beaucoup plus complète. Nous allons la détailler ci-dessous
+        afin que vous compreniez bien comment l'utiliser :<br/><br/>
+        > name : permet de définir le nom du champ dans la base de données (on ne peut pas le différencier du nom du
+        champ de l'entité pour le moment).<br/>
+        > type : permet de définir le type dans la base de données. Le type côté entité sera automatiquement retraduit
+        par Attile.<br/>
+        > options : permet de définir quelques options comme ici le fait de ne pas signer votre entier (soit d'autoriser
+        que les nombres positif).<br/>
+        &nbsp;&nbsp;&nbsp;&nbsp;options={"unsigned":true} permet de dire que nos chiffres seront toujours positifs.<br/>
+        &nbsp;&nbsp;&nbsp;&nbsp;options={"default":null} permet de définir une valeur par défaut.<br/>
+        &nbsp;&nbsp;&nbsp;&nbsp;options={"comment":"bla bla bla"} permet de définir un commentaire sur un champs.<br/>
+        > length : permet de définir la taille d'un champ comme un varcher ou un int.<br/>
+        > precision et scale : permettent de définir les précisions sur les nombre décimaux.<br/>
+        > unique : permet de définir un champ comme unique.<br/>
+        > nullable : permet de définir un champ comme null ou not null.<br/>
+        
+        <a href="xxx.html">[suivant]</a>
+    </body>
+</html>

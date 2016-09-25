@@ -3,8 +3,6 @@
 /**
  * Batch that create entity
  *
- * @category  	Attila
- * @package   	Attila\Batch
  * @author    	Judicaël Paquet <judicael.paquet@gmail.com>
  * @copyright 	Copyright (c) 2013-2014 PAQUET Judicaël FR Inc. (https://github.com/las93)
  * @license   	https://github.com/las93/attila/blob/master/LICENSE.md Tout droit réservé à PAQUET Judicaël
@@ -23,20 +21,11 @@ namespace Attila\Batch;
 
 use \Attila\lib\Db as Db;
 use \Attila\lib\Db\Container as DbContainer;
-use \Attila\lib\Bash;
+use \VenusBash\Bash;\Bash;
 
 /**
- * Batch that create entity
- *
- * @category  	Attila
- * @package   	Attila\Batch
- * @author    	Judicaël Paquet <judicael.paquet@gmail.com>
- * @copyright 	Copyright (c) 2013-2014 PAQUET Judicaël FR Inc. (https://github.com/las93)
- * @license   	https://github.com/las93/attila/blob/master/LICENSE.md Tout droit réservé à PAQUET Judicaël
- * @version   	Release: 1.0.0
- * @filesource	https://github.com/las93/attila
- * @link      	https://github.com/las93
- * @since     	1.0.0
+ * Class Operation
+ * @package Attila\Batch
  */
 class Operation
 {
