@@ -313,33 +313,35 @@ class Entity
 
             foreach ($oConnection->tables as $sTableName => $oOneTable) {
 
-                $query = "SHOW TABLES LIKE '".$sTableName."'";
+                $query = "SELECT 1 FROM ".$sTableName."";
                 $results = $oPdo->query($query);
 
-                if (count($results) > 0) {
+                if ($results) {
                     $tableExists = true;
                     $query = 'DESC ' . SQL_FIELD_NAME_SEPARATOR . $sTableName . SQL_FIELD_NAME_SEPARATOR;
                     $results = $oPdo->query($query);
                     $tableDesc = [];
 
-                    foreach ($results as $key => $one) {
+                    if ($results) {
+                        foreach ($results as $key => $one) {
 
-                        $one[1] = str_replace('int(11)', 'int', $one[1]);
+                            $one[1] = str_replace('int(11)', 'int', $one[1]);
 
-                        $tableDesc[$one[0]] = [
-                            'type' =>  preg_replace('/^([a-zA-Z]+).*$/', '$1', $one[1]),
-                            'value' =>  preg_replace('/^[a-zA-Z]+\(?([^\)]*)\)?.*$/', '$1', $one[1]),
-                            'null' =>  $one[2]=='NO'?false:true,
-                            'key' => $one[3],
-                            'default' => $one[4],
-                            'extra' => $one[5],
-                            'unsigned' => preg_match('/unsigned/', $one[1])?true:false,
-                            'table_exists' => false
-                        ];
+                            $tableDesc[$one[0]] = [
+                                'type' => preg_replace('/^([a-zA-Z]+).*$/', '$1', $one[1]),
+                                'value' => preg_replace('/^[a-zA-Z]+\(?([^\)]*)\)?.*$/', '$1', $one[1]),
+                                'null' => $one[2] == 'NO' ? false : true,
+                                'key' => $one[3],
+                                'default' => $one[4],
+                                'extra' => $one[5],
+                                'unsigned' => preg_match('/unsigned/', $one[1]) ? true : false,
+                                'table_exists' => false
+                            ];
+                        }
                     }
 
                 } else {
-                    $tableExists = true;
+                    $tableExists = false;
                     $sQuery = 'CREATE TABLE IF NOT EXISTS ' . SQL_FIELD_NAME_SEPARATOR . $sTableName . SQL_FIELD_NAME_SEPARATOR . ' (';
                 }
 
@@ -431,7 +433,7 @@ class Entity
                         }
                     } else {
                         $tableDesc[$sFieldName]['table_exists'] = true;
-                        $field = 'ALTER TABLE ' . SQL_FIELD_NAME_SEPARATOR . $sTableName . SQL_FIELD_NAME_SEPARATOR . ' DROP COLUMN '.$field;
+                        $field = 'ALTER TABLE ' . SQL_FIELD_NAME_SEPARATOR . $sTableName . SQL_FIELD_NAME_SEPARATOR . ' DROP COLUMN '.$sFieldName;
                         if ($bDumpSql) {
                             echo $field."\n";
                         } else  if ($oPdo->query($field) === false) {

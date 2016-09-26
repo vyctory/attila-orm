@@ -186,7 +186,7 @@ abstract class Entity
 
         foreach ($aEntityTmp as $sKey => $mField) {
 
-            if ($mField !== null) {
+            if ($mField !== null && !is_object($mField)) {
 
                 $aEntity[$sKey] = $mField;
             }
@@ -244,7 +244,7 @@ abstract class Entity
 
             $sCommentPhpDoc = $aOne->getDocComment();
 
-            if (strstr($sCommentPhpDoc, '@join')) {
+            if (strstr($sCommentPhpDoc, '@OneToMany')) {
 
                 $sClassName = $aOne->class;
                 $oClass = new $sClassName;
