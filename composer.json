@@ -1,7 +1,7 @@
 {
     "name": "vyctory/attila-orm",
     "license": "MIT",
-    "version": "1.0.8",
+    "version": "1.0.9",
     "type": "ORM",
     "description": "ORM in PHP",
     "keywords": ["orm"],

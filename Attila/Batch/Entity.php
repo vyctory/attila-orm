@@ -77,6 +77,7 @@ class Entity
         if (isset($aOptions['p'])) {
 
             $sPortal = $aOptions['p'];
+            define('ENTITY_FINAL_NAME', preg_replace('/Batch/', $sPortal, ENTITY_NAMESPACE));
         }
         else {
 
@@ -434,7 +435,7 @@ class Entity
                     } else if (!isset($tableDesc[$sFieldName]) && isset($oOneField)) {
 
                         $tableDesc[$sFieldName]['table_exists'] = true;
-                        $futurField = $this->createFieldByArray($sTableName, $sFieldName, $oOneField, 'ADD');
+                        $futurField = $this->createFieldByArray($sTableName, $sFieldName, (array)$oOneField, 'ADD');
                         $field = 'ALTER TABLE ' . SQL_FIELD_NAME_SEPARATOR . $sTableName . SQL_FIELD_NAME_SEPARATOR . ' ADD '.$field;
 
                         if ($futurField !== $field) {
@@ -544,7 +545,7 @@ class Entity
  * Entity to '.$sTableName.'
  *
  * @category  	\\'.CATEGORY.'
- * @package   	'.ENTITY_NAMESPACE.'
+ * @package   	'.ENTITY_FINAL_NAME.'
  * @author    	'.AUTHOR.'
  * @copyright 	'.COPYRIGHT.'
  * @license   	'.LICENCE.'
@@ -553,14 +554,14 @@ class Entity
  * @link      	'.LINK.'
  * @since     	1.0
  */
-namespace '.preg_replace('/^\\\\/', '', ENTITY_NAMESPACE).';
+namespace '.preg_replace('/^\\\\/', '', ENTITY_FINAL_NAME).';
 
 use \Attila\core\Entity as Entity;
 use \Attila\Orm as Orm;
 
 /**
  * @ORM\Table(name="'.$sTableName.'")
- * @ORM\Entity(repositoryClass="'.str_replace('Entity', 'Model', preg_replace('/^\\\\/', '', ENTITY_NAMESPACE)).'\\'.$sTableName.'")
+ * @ORM\Entity(repositoryClass="'.str_replace('Entity', 'Model', preg_replace('/^\\\\/', '', ENTITY_FINAL_NAME)).'\\'.$sTableName.'")
  */
 class '.$sTableName.' extends Entity 
 {';
@@ -724,7 +725,7 @@ class '.$sTableName.' extends Entity
 
 	/**
 	 * @param  '.$sType.' $'.$sFieldName.' 
-	 * @return '.ENTITY_NAMESPACE.'\\'.$sTableName.'
+	 * @return '.ENTITY_FINAL_NAME.'\\'.$sTableName.'
 	 */
 	public function set_'.$sFieldName.'('.$sType.' $'.$sFieldName.') 
 	{
@@ -785,7 +786,7 @@ class '.$sTableName.' extends Entity
 
                             if ($sKey2 == 'primary' && $iPrimaryKey == 1) {
 
-                                $sContentFile .= ENTITY_NAMESPACE.'\\'.$sTableName;
+                                $sContentFile .= ENTITY_FINAL_NAME.'\\'.$sTableName;
                             }
                             else if (isset($oField->key) && ($oField->key == 'primary' || in_array('primary', $oField->key))) {
 
@@ -793,7 +794,7 @@ class '.$sTableName.' extends Entity
                             }
                             else {
 
-                                $sContentFile .= ENTITY_NAMESPACE.'\\'.$sTableName;
+                                $sContentFile .= ENTITY_FINAL_NAME.'\\'.$sTableName;
                             }
 
                             $sContentFile .= '
@@ -827,7 +828,7 @@ class '.$sTableName.' extends Entity
                             }
 
                             $sContentFile .= ' = $orm->where($where)
-						           ->load(false, \''.ENTITY_NAMESPACE.'\\\\\');';
+						           ->load(false, \''.ENTITY_FINAL_NAME.'\\\\\');';
 
                             if ((!isset($oField->key) || (isset($oField->key) && $oField->key != 'primary'
                                         && (is_array($oField->key) && !in_array('primary', $oField->key))))
@@ -948,9 +949,13 @@ class '.$sTableName.' extends Model
 
         $field = 'ALTER TABLE ' . SQL_FIELD_NAME_SEPARATOR . $tableName . SQL_FIELD_NAME_SEPARATOR . ' '.$action.' ' . SQL_FIELD_NAME_SEPARATOR . $fieldName . SQL_FIELD_NAME_SEPARATOR . ' ' . $tableContent['type'];
 
-        if ($tableContent['value']) {
+        if (isset($tableContent['value'])) {
 
             $field .= '(' . $tableContent['value'] . ') ';
+        }
+        else if ($tableContent['type'] == 'int') {
+
+            $field .= '(11) ';
         }
 
         if ($tableContent['unsigned']) {
@@ -964,12 +969,12 @@ class '.$sTableName.' extends Model
             $field .= ' NOT NULL ';
         }
 
-        if ($tableContent['default']) {
+        if (isset($tableContent['default'])) {
             $field .= ' DEFAULT "' . $tableContent['default'] . '" ';
         }
 
 
-        if ($tableContent['extra'] === 'auto_increment') {
+        if (isset($tableContent['extra']) && $tableContent['extra'] === 'auto_increment') {
 
             $field .= ' AUTO_INCREMENT ';
         }

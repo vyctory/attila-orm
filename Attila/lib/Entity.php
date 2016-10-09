@@ -256,12 +256,12 @@ class Entity
 
             $sDoc = $oProperty->getDocComment();
 
-            if (preg_match('/@map ([a-zA-Z_]+)/', $sDoc, $aMatch) && !preg_match('/@ORM.OneTOMany/', $sDoc)) {
+            if (preg_match('/@map ([a-zA-Z_]+)/', $sDoc, $aMatch) && !preg_match('/@ORM.OneToMany/', $sDoc)) {
 
                 $sMethodName = 'get_'.$oProperty->getName();
                 $oEntitieSetup->$aMatch[1] = $oEntity->$sMethodName();
             }
-            else if (!preg_match('/@ORM.OneTOMany/', $sDoc)) {
+            else if (!preg_match('/@ORM.OneToMany/', $sDoc)) {
 
                 $sMethodName = 'get_'.$oProperty->getName();
                 $sPropertyName = $oProperty->getName();
