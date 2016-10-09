@@ -431,6 +431,21 @@ class Entity
                                 echo "\n" . $field . "\n";
                             }
                         }
+                    } else if (!isset($tableDesc[$sFieldName]) && isset($oOneField)) {
+
+                        $tableDesc[$sFieldName]['table_exists'] = true;
+                        $futurField = $this->createFieldByArray($sTableName, $sFieldName, $oOneField, 'ADD');
+                        $field = 'ALTER TABLE ' . SQL_FIELD_NAME_SEPARATOR . $sTableName . SQL_FIELD_NAME_SEPARATOR . ' ADD '.$field;
+
+                        if ($futurField !== $field) {
+                            if ($bDumpSql) {
+                                echo $field . "\n";
+                            } else if ($oPdo->query($field) === false) {
+
+                                echo "\n[ERROR SQL] " . $oPdo->errorInfo()[2] . " for the table " . $sTableName . "\n";
+                                echo "\n" . $field . "\n";
+                            }
+                        }
                     } else {
                         $tableDesc[$sFieldName]['table_exists'] = true;
                         $field = 'ALTER TABLE ' . SQL_FIELD_NAME_SEPARATOR . $sTableName . SQL_FIELD_NAME_SEPARATOR . ' DROP COLUMN '.$sFieldName;
