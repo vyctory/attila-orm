@@ -53,6 +53,46 @@ class Entity
     private $decimalTypes = ['float', 'decimal', 'double', 'precision', 'real', 'float4', 'float8', 'numeric'];
 
     /**
+     * @var bool
+     */
+    private $verbose = false;
+
+    /**
+     * @var string
+     */
+    private $portal = 'Attila';
+
+    /**
+     * @var string
+     */
+    private $entitiesPath = '';
+
+    /**
+     * @var string
+     */
+    private $modelsPath = '';
+
+    /**
+     * @var string
+     */
+    private $entitiesNamespace = '';
+
+    /**
+     * @var string
+     */
+    private $modelsNamespace = '';
+
+    /**
+     * @var string
+     */
+    private $confFile = '';
+
+    /**
+     * @var
+     */
+    private $defaultConnection;
+
+    /**
      * run the batch to create entity
      * @tutorial launch.php scaffolding
      *
@@ -176,7 +216,7 @@ class Entity
         if ($sSqlJsonFile !== false) { $oJson = json_decode(file_get_contents($sSqlJsonFile)); }
         else { $oJson = json_decode($sSqlJson); }
 
-        $this->constructConfFileOfEntities($options, $sEntitiesPath);
+        //$this->constructConfFileOfEntities($options, $sEntitiesPath);
 
         $oConnection = $oJson->configuration;
 
@@ -312,6 +352,8 @@ class Entity
                 }
             }
 
+            //var_dump($oConnection->tables);
+
             foreach ($oConnection->tables as $sTableName => $oOneTable) {
 
                 $query = "SELECT 1 FROM ".$sTableName."";
@@ -349,7 +391,7 @@ class Entity
                 $aIndex = array();
                 $aUnique = array();
                 $aPrimaryKey = array();
-
+                //var_dump($oConnection->tables);
                 foreach ($oOneTable->fields as $sFieldName => $oOneField) {
 
                     $field = SQL_FIELD_NAME_SEPARATOR.$sFieldName.SQL_FIELD_NAME_SEPARATOR.' '.$oOneField->type;
@@ -510,6 +552,8 @@ class Entity
                         echo "\n" . $sQuery . "\n";
                     }
                 }
+
+
             }
 
             // Column not in the database but is in the config file
@@ -530,7 +574,7 @@ class Entity
                 }
             }
         }
-
+        //var_dump($oConnection->tables);
         /**
          * scaffolding of the entities
          */
@@ -567,7 +611,7 @@ class '.$sTableName.' extends Entity
 {';
 
                 foreach ($oOneTable->fields as $sFieldName => $oField) {
-
+                    if (!isset($oField->type)) { var_dump($sTableName,$sFieldName, $oOneTable); }
                     if ($oField->type == 'enum' || $oField->type == 'char' || $oField->type == 'varchar' || $oField->type == 'text'
                         || $oField->type == 'date' || $oField->type == 'datetime' || $oField->type == 'time' || $oField->type == 'binary'
                         || $oField->type == 'varbinary' || $oField->type == 'blob' || $oField->type == 'tinyblob'
@@ -681,7 +725,7 @@ class '.$sTableName.' extends Entity
                 }
 
                 foreach ($oOneTable->fields as $sFieldName => $oField) {
-
+                    if (!isset($oField->type)) { var_dump($sTableName,$sFieldName, $oField); }
                     if ($oField->type == 'enum' || $oField->type == 'char' || $oField->type == 'varchar' || $oField->type == 'text'
                         || $oField->type == 'date' || $oField->type == 'datetime' || $oField->type == 'time' || $oField->type == 'binary'
                         || $oField->type == 'varbinary' || $oField->type == 'blob' || $oField->type == 'tinyblob'
@@ -939,6 +983,80 @@ class '.$sTableName.' extends Model
     }
 
     /**
+     * @param array $options
+     */
+    public function scaffolding(array $options = array())
+    {
+        /**
+         * option -v [if you want the script tell you - dump of sql]
+         */
+
+        if (isset($options['v'])) { $this->setVerbose(true); }
+        else { $this->setVerbose(false); }
+
+        /**
+         * option -p [portail]
+         */
+
+        if (isset($options['p'])) {
+
+            //$sPortal = $aOptions['p'];
+            //define('ENTITY_FINAL_NAME', preg_replace('/Batch/', $sPortal, ENTITY_NAMESPACE));
+            $this->setPortal($options['p']);
+        }
+        else {
+
+            echo 'Error: you must indicated the Entity Path';
+            exit;
+        }
+
+        /**
+         * option -g [indicate the Entities directory]
+         */
+
+        if (isset($options['g'])) { $this->setEntitiesPath($options['g']); }
+
+        /**
+         * option -h [indicate the Models directory]
+         */
+
+        if (isset($options['h'])) { $this->setModelsPath($options['h']); }
+
+        /**
+         * option -f [indicate the json file]
+         */
+
+        if (isset($options['f'])) { $this->setConfFile($options['f']); }
+
+        /**
+         * option -e [indicate the Entities namespace]
+         */
+
+        if (isset($options['e'])) { $this->setEntitiesNamespace($options['e']); }
+
+        /**
+         * option -m [indicate the Models namespace]
+         */
+
+        if (isset($options['m'])) { $this->setModelsNamespace($options['m']); }
+
+        /**
+         * phase 1 : construct the conf file from the entities
+         */
+        $this->createConfFileOfEntities();
+
+        /**
+         * phase 2 : construct the entities from the conf file
+         */
+        $this->createEntitiesOfConfFile();
+
+        /**
+         * phase 3 : construct the database
+         */
+        $this->createDatabase($this->getConfFile(), $this->getEntitiesPath());
+    }
+
+    /**
      * @param string $tableName
      * @param string $fieldName
      * @param array $tableContent
@@ -958,7 +1076,7 @@ class '.$sTableName.' extends Model
             $field .= '(11) ';
         }
 
-        if ($tableContent['unsigned']) {
+        if (isset($tableContent['unsigned']) && $tableContent['unsigned']) {
 
             $field .= ' UNSIGNED ';
         }
@@ -1088,9 +1206,648 @@ class '.$sTableName.' extends Model
 
                         $jsonFileObject->configuration->tables->{$tableName}->fields->{$nameField} = $result;
                     }
+
                     file_put_contents($one, json_encode($jsonFileObject, JSON_PRETTY_PRINT));
                 }
             }
         }
+    }
+
+    /**
+     *
+     */
+    private function createConfFileOfEntities()
+    {
+        $entitiesPath = substr($this->getEntitiesPath(), 0, -1);
+        $files = scandir($entitiesPath);
+        $readerPhpdoc = new Reader;
+
+        foreach (explode(';', $this->getConfFile()) as $one) {
+
+            $jsonFileObject =  json_decode(file_get_contents($one));
+
+            foreach ($files as $oneFile) {
+
+                $tableName = str_replace('.php', '', $oneFile);
+
+                if (filemtime($entitiesPath.DIRECTORY_SEPARATOR.$oneFile) > filemtime($one) && $oneFile !== '.' && $oneFile !== '..') {
+
+                    $className = $this->getEntitiesNamespace().'\\'.$tableName;
+                    $reflectionClass  = new \ReflectionClass($className);
+                    $reflectionProperties = $reflectionClass->getProperties();
+
+                    foreach ($reflectionProperties as $oneProperty) {
+
+                        $phpDocProperty = $readerPhpdoc->getPhpDocOfProperty($className, $oneProperty->name);
+                        $result = new \stdClass();
+
+                        if (isset($phpDocProperty['ORM\\Column'])
+                            && isset($jsonFileObject->tables->{$tableName}->fields->{$phpDocProperty['ORM\\Column']['name']})){
+
+                            if (isset($phpDocProperty['ORM\\Column']['columnDefinition'])) {
+
+                                $result->columnDefinition = $phpDocProperty['ORM\\Column']['columnDefinition'];
+                            }
+
+                            if ($phpDocProperty['ORM\\Column']['type'] == "decimal"
+                                && isset($phpDocProperty['ORM\\Column']['precision'])
+                                && isset($phpDocProperty['ORM\\Column']['scale'])) {
+
+                                $result->precision = $phpDocProperty['ORM\\Column']['precision'];
+                                $result->scale = $phpDocProperty['ORM\\Column']['scale'];
+                            }
+
+                            $result->type = $phpDocProperty['ORM\\Column']['type'];
+
+                            if (isset($phpDocProperty['ORM\\Column']['length'])) {
+                                $result->length = $phpDocProperty['ORM\\Column']['length'];
+                            }
+
+                            if (isset($phpDocProperty['ORM\\Column']['unique']) && $phpDocProperty['ORM\\Column']['unique'] == true) {
+                                $result->unique = 'unique';
+                            }
+
+                            if (isset($phpDocProperty['ORM\\Column']['nullable']) && $phpDocProperty['ORM\\Column']['nullable'] === true) {
+                                $result->nullable = true;
+                            } else  {
+                                $result->nullable = false;
+                            }
+
+                            if (isset($phpDocProperty['ORM\\Column']['options'])) {
+
+                                $result->options = json_decode($phpDocProperty['ORM\\Column']['options']);
+                            }
+
+                            $nameField = $phpDocProperty['ORM\\Column']['name'];
+                        }
+
+                        if (isset($phpDocProperty['ORM\\Id'])) { $result->key = "primary"; }
+
+                        if (isset($phpDocProperty['ORM\\GeneratedValue'])) { $result->autoincrement = true; }
+
+                        if (isset($phpDocProperty['ORM\\OneToMany'])) {
+
+                            $result = $jsonFileObject->tables->{$tableName}->fields->{$nameField};
+
+                            $result->target = $phpDocProperty['ORM\\OneToMany']["target"];
+                            $result->targetField = $phpDocProperty['ORM\\OneToMany']["targetField"];
+
+                            if (isset($phpDocProperty['ORM\\OneToMany']["cascade"])) {
+                                $result->cascade = $phpDocProperty['ORM\\OneToMany']["cascade"];
+                            }
+                        }
+
+                        $jsonFileObject->tables->{$tableName}->fields->{$nameField} = $result;
+                    }
+
+                    file_put_contents($one, json_encode($jsonFileObject, JSON_PRETTY_PRINT));
+                }
+            }
+        }
+    }
+
+    /**
+     *
+     */
+    private function createEntitiesOfConfFile()
+    {
+        $configuration = json_decode(file_get_contents($this->getConfFile()));
+
+        $this->defaultConnection = $configuration->default_connection;
+
+        /**
+         * search all join and create many join in two sens
+         * it's just to create entity -> add OneToMany in the conf file is useless
+         */
+        foreach ($configuration->tables as $tableName => $values) {
+
+            if (!isset($configuration->tables->{$tableName}->OneToAll)) {
+                $configuration->tables->{$tableName}->OneToAll = [];
+            }
+
+            foreach ($values->fields as $fieldName => $valuesField) {
+
+                /**
+                 * @ManyToOne(targetEntity="Cart", cascade={"all"}, fetch="EAGER")
+                 */
+                if (isset($valuesField->ManyToOne) && isset($valuesField->ManyToOne->targetEntity)) {
+
+                    $tableDestName = $valuesField->ManyToOne->targetEntity;
+                    $tableDestName = preg_replace_callback('/([A-Z])/', function($match) { return '_'.strtolower($match[1]); }, $tableDestName);
+
+                    if (!isset($configuration->tables->{$tableDestName}->OneToAll)) {
+                        $configuration->tables->{$tableDestName}->OneToAll = [];
+                    }
+
+                    if (!isset($configuration->tables->{$tableDestName}->OneToAll[$tableName]->OneToMany)) {
+                        $configuration->tables->{$tableDestName}->OneToAll[$tableName] = new \stdClass();
+                        $configuration->tables->{$tableDestName}->OneToAll[$tableName]->OneToMany = new \stdClass();
+                        $configuration->tables->{$tableDestName}->OneToAll[$tableName]->JoinColumn = new \stdClass();
+                    }
+
+                    $entityName = preg_replace_callback('/_([a-z])/', function($match) { return strtoupper($match[1]); }, $tableName);
+                    $configuration->tables->{$tableDestName}->OneToAll[$tableName]->OneToMany->targetEntity = $entityName;
+
+                    $configuration->tables->{$tableDestName}->OneToAll[$tableName]->JoinColumn->name = $fieldName;
+                    $configuration->tables->{$tableDestName}->OneToAll[$tableName]->JoinColumn->referencedColumnName = $fieldName;
+                }
+
+                /**
+                 * @OneToOne(targetEntity="Customer")
+                 */
+                if (isset($valuesField->OneToOne) && isset($valuesField->OneToOne->targetEntity)) {
+
+                    $tableDestName = $valuesField->OneToOne->targetEntity;
+                    $tableDestName = preg_replace_callback('/([A-Z])/', function($match) { return '_'.strtolower($match[1]); }, $tableDestName);
+
+                    if (!isset($configuration->tables->{$tableDestName}->OneToAll)) {
+                        $configuration->tables->{$tableDestName}->OneToAll = [];
+                    }
+
+                    if (!isset($configuration->tables->{$tableDestName}->OneToAll[$tableNlolame]->OneToOne)) {
+                        $configuration->tables->{$tableDestName}->OneToAll[$tableName] = new \stdClass();
+                        $configuration->tables->{$tableDestName}->OneToAll[$tableName]->OneToOne = new \stdClass();
+                        $configuration->tables->{$tableDestName}->OneToAll[$tableName]->JoinColumn = new \stdClass();
+                    }
+
+                    $entityName = preg_replace_callback('/_([a-z])/', function($match) { return strtoupper($match[1]); }, $tableName);
+                    $configuration->tables->{$tableDestName}->OneToAll[$tableName]->OneToOne->targetEntity = $entityName;
+
+                    $configuration->tables->{$tableDestName}->OneToAll[$tableName]->JoinColumn->name = $fieldName;
+                    $configuration->tables->{$tableDestName}->OneToAll[$tableName]->JoinColumn->referencedColumnName = $fieldName;
+                }
+
+                /**
+                 * @ManyToMany(targetEntity="Customer")
+                 */
+                if (isset($valuesField->ManyToMany) && isset($valuesField->ManyToMany->targetEntity)) {
+                    if (isset($valuesField->JoinColumn)) {
+
+                        $tableDestName = $valuesField->ManyToMany->targetEntity;
+                        $tableDestName = preg_replace_callback('/([A-Z])/', function($match) { return '_'.strtolower($match[1]); }, $tableDestName);
+
+                        if (!isset($configuration->tables->{$tableName.'_has_'.$tableDestName}) && !isset($configuration->tables->{$tableDestName.'_has_'.$tableName})) {
+                            $configuration->tables->{$tableName.'_has_'.$tableDestName} = new \stdClass();
+                        }
+                        $configuration->tables->{$tableDestName}->OneToAll[$tableName]->JoinColumn->name;
+                        $configuration->tables->{$tableDestName}->OneToAll[$tableName]->JoinColumn->referencedColumnName;
+                    }
+                }
+            }
+        }
+
+        /**
+         * list all tables
+         */
+
+        foreach ($configuration->tables as $tableName => $values) {
+
+
+            $className = preg_replace_callback('/_([a-z])/', function($match) { return strtoupper($match[1]); }, $tableName);
+            $contentMethodPartOfFile = '';
+
+            $contentFile = '<?php
+	
+namespace '.$this->getEntitiesNamespace().';
+
+use \Attila\core\Entity as Entity;
+use \Attila\Orm as Orm;
+
+/**
+ * @ORM\Table(name="'.$tableName.'")
+ * @ORM\Entity(repositoryClass="'.$this->getModelsNamespace().'\\'.$className.'")
+ */
+class '.$className.' extends Entity 
+{';
+
+            foreach ($values->fields as $fieldName => $valuesField) {
+
+                $paramName = $fieldName;
+                $paramName = preg_replace_callback('/_([a-z])/', function ($match) {
+                    return strtoupper($match[1]);
+                }, $paramName);
+
+                /**
+                 * create the type of the parameter
+                 */
+                if ($valuesField->type === 'tinyint' || $valuesField->type === 'smallint' || $valuesField->type === 'mediumint' || $valuesField->type === 'bigint') {
+                    $paramType = 'int';
+                } elseif ($valuesField->type == 'enum' || $valuesField->type == 'char' || $valuesField->type == 'varchar'
+                    || $valuesField->type == 'text' || $valuesField->type == 'date' || $valuesField->type == 'datetime'
+                    || $valuesField->type == 'time' || $valuesField->type == 'binary' || $valuesField->type == 'varbinary'
+                    || $valuesField->type == 'blob' || $valuesField->type == 'tinyblob' || $valuesField->type == 'tinytext'
+                    || $valuesField->type == 'mediumblob' || $valuesField->type == 'mediumtext' || $valuesField->type == 'longblob'
+                    || $valuesField->type == 'longtext' || $valuesField->type == 'char varying' || $valuesField->type == 'long varbinary'
+                    || $valuesField->type == 'long varchar' || $valuesField->type == 'long'
+                ) {
+
+                    $paramType = 'string';
+
+                    if ($valuesField->type == 'char' || $valuesField->type == 'binary') {
+                        $valuesField->options->fixed = true;
+                    }
+                } else {
+                    $paramType = $valuesField->type;
+                }
+
+                $contentFile .= '
+    /**
+     * @var ' . $paramType . '
+     *
+     * @ORM\Column(name="' . $fieldName . '", type="' . $valuesField->type . '"' .
+                    '' . ($valuesField->type === 'enum' ? ', columnDefinition="\'' . implode('\',\'', $valuesField->values) . '\'"' : '') .
+                    '' . (isset($valuesField->length) ? ', length=' . $valuesField->length : '') .
+                    '' . (isset($valuesField->precision) ? ', precision=' . $valuesField->precision : '') .
+                    '' . (isset($valuesField->scale) ? ', scale=' . $valuesField->scale : '') .
+                    '' . (isset($valuesField->options) ? ', options=' . json_encode($valuesField->options) : '') .
+                    '' . (isset($valuesField->unique) && $valuesField->unique == 'unique' ? ', unique=true' : '') .
+                    '' . (isset($valuesField->nullable) && $valuesField->nullable === true ? ', nullable=true' : ', nullable=false') .
+                    ')
+';
+
+                if (isset($valuesField->key) && $valuesField->key == 'primary') {
+
+                    $contentFile .= '     * @ORM\Id' . "\n";
+                }
+
+                if (isset($valuesField->autoincrement) && $valuesField->autoincrement === true) {
+
+                    $contentFile .= '     * @ORM\GeneratedValue(strategy="AUTO")' . "\n";
+                }
+
+                $contentFile .= '     */
+    private $' . $paramName . '' . (isset($valuesField->options) && isset($valuesField->options->default) ? ' = ' . $valuesField->options->default : '') . ';
+	';
+
+                //==============================================================
+                // Just the classic method (simple field of table)
+                //==============================================================
+
+                $methodName = $paramName;
+                $methodName{0} = strtoupper($methodName{0});
+                $contentMethodPartOfFile .= '
+    /**
+     * @return '.$paramType.'
+     */
+    public function get'.$methodName.'()  : '.$paramType.'
+    {
+        return $this->'.$paramName.';
+    }
+
+    /**
+     * @param  '.$paramType.' $'.$paramName.' 
+     * @return '.$this->getEntitiesNamespace().'\\'.$className.'
+     */
+    public function set'.$methodName.'('.$paramType.' $'.$paramName.') 
+    {
+        $this->'.$paramName.' = $'.$paramName.';
+        return $this;
+    }
+	';
+                //==============================================================
+                // Just the join field
+                //==============================================================
+
+                if (isset($valuesField->OneToOne) && isset($valuesField->JoinColumn)) {
+
+                    $contentFile .= '
+	/**
+     * @var ' . $this->getEntitiesNamespace() . '\\' . $valuesField->OneToOne->targetEntity . '
+     *
+     * @ORM\OneToOne(targetEntity="' . $valuesField->OneToOne->targetEntity . '")
+	 * @ORM\JoinColumn(name="' . $valuesField->JoinColumn->name . '", referencedColumnName="' . $valuesField->JoinColumn->referencedColumnName . '")
+	 */
+    private $' . $valuesField->OneToOne->targetEntity . ' = null;
+';
+                    $methodName = $valuesField->OneToOne->targetEntity;
+                    $methodName{0} = strtoupper($methodName{0});
+
+                    $tableDestName = $valuesField->OneToOne->targetEntity;
+                    $tableDestName = preg_replace_callback('/([A-Z])/', function($match) { return '_'.strtolower($match[1]); }, $tableDestName);
+
+                    $methodKeyName = $valuesField->JoinColumn->name;
+                    $methodKeyName = preg_replace_callback('/_([a-z])/', function($match) { return strtoupper($match[1]); }, $methodKeyName);
+                    $methodKeyName{0} = strtoupper($methodKeyName{0});
+
+                    $contentMethodPartOfFile .= '
+    /**
+     * @param  array $where
+     * @return '.$this->getEntitiesNamespace().'\\'.$valuesField->OneToOne->targetEntity.'
+     */
+    public function get'.$methodName.'(array $where = [])
+    {
+        if ($this->'.$valuesField->OneToOne->targetEntity.' === null) {
+
+            $orm = new Orm;
+
+            $orm->select(array(\'*\'))
+                ->from(\''.$tableDestName.'\');
+												   
+            $where[\''.$valuesField->JoinColumn->referencedColumnName.'\'] = $this->get'.$methodKeyName.'();
+	        
+            $this->'.$valuesField->OneToOne->targetEntity.' = $orm->where($where)->load(false, \''.$this->getEntitiesNamespace().'\\\\\');
+        }
+        
+        return $this->'.$valuesField->OneToOne->targetEntity.';
+    }        
+	
+    /**
+     * @param  '.$this->getEntitiesNamespace().'\\'.$valuesField->OneToOne->targetEntity.' $'.$valuesField->OneToOne->targetEntity.'
+     * @return '.$this->getEntitiesNamespace().'\\'.$className.'
+     */
+    public function set'.$methodName.'('.$this->getEntitiesNamespace().'\\'.$valuesField->OneToOne->targetEntity.' $'.$valuesField->OneToOne->targetEntity.')
+    {
+        $this->'.$valuesField->OneToOne->targetEntity.' = $'.$valuesField->OneToOne->targetEntity.';
+        return $this;
+    }
+';
+                } elseif (isset($valuesField->ManyToOne) && isset($valuesField->JoinColumn)) {
+
+                    $contentFile .= '
+    /**
+     * @var ' . $this->getEntitiesNamespace() . '\\' . $valuesField->ManyToOne->targetEntity . '
+     *
+     * @ORM\ManyToOne(targetEntity="' . $valuesField->ManyToOne->targetEntity . '")
+     * @ORM\JoinColumn(name="' . $valuesField->JoinColumn->name . '", referencedColumnName="' . $valuesField->JoinColumn->referencedColumnName . '")
+     */
+    private $' . $valuesField->ManyToOne->targetEntity . ' = null;
+';
+                    $methodName = $valuesField->ManyToOne->targetEntity;
+                    $methodName{0} = strtoupper($methodName{0});
+
+                    $tableDestName = $valuesField->ManyToOne->targetEntity;
+                    $tableDestName = preg_replace_callback('/([A-Z])/', function($match) { return '_'.strtolower($match[1]); }, $tableDestName);
+
+                    $methodKeyName = $valuesField->JoinColumn->name;
+                    $methodKeyName = preg_replace_callback('/_([a-z])/', function($match) { return strtoupper($match[1]); }, $methodKeyName);
+                    $methodKeyName{0} = strtoupper($methodKeyName{0});
+
+                    $contentMethodPartOfFile .= '
+    /**
+     * @param  array $where
+     * @return '.$this->getEntitiesNamespace().'\\'.$valuesField->ManyToOne->targetEntity.'
+     */
+    public function get'.$methodName.'(array $where = [])
+    {
+        if ($this->'.$valuesField->ManyToOne->targetEntity.' === null) {
+
+            $orm = new Orm;
+
+            $orm->select(array(\'*\'))
+                ->from(\''.$tableDestName.'\');
+												   
+            $where[\''.$valuesField->JoinColumn->referencedColumnName.'\'] = $this->get'.$methodKeyName.'();
+	        
+            $this->'.$valuesField->ManyToOne->targetEntity.' = $orm->where($where)->load(false, \''.$this->getEntitiesNamespace().'\\\\\');
+        }
+        
+        return $this->'.$valuesField->ManyToOne->targetEntity.'[0];
+    }        
+	
+    /**
+     * @param  '.$this->getEntitiesNamespace().'\\'.$valuesField->ManyToOne->targetEntity.' $'.$valuesField->ManyToOne->targetEntity.'
+     * @return '.$this->getEntitiesNamespace().'\\'.$className.'
+     */
+    public function set'.$methodName.'('.$this->getEntitiesNamespace().'\\'.$valuesField->ManyToOne->targetEntity.' $'.$valuesField->ManyToOne->targetEntity.')
+    {
+        $this->'.$valuesField->ManyToOne->targetEntity.' = $'.$valuesField->ManyToOne->targetEntity.';
+        return $this;
+    }
+';
+                }
+            }
+
+            /**
+             * We don't write ManyToOne in the conf file (we devin it with the OneToMany)
+             */
+            foreach ($values->OneToAll as $joinType => $valuesField) {
+
+                if (isset($valuesField->OneToMany) && isset($valuesField->JoinColumn)) {
+
+                    $contentFile .= '
+    /**
+     * @var array
+     *
+     * @ORM\OneToMany(targetEntity="'.$valuesField->OneToMany->targetEntity.'")
+     * @ORM\JoinColumn(name="'.$valuesField->JoinColumn->name.'", referencedColumnName="'.$valuesField->JoinColumn->referencedColumnName.'")
+     */
+    private $'.$valuesField->OneToMany->targetEntity.' = null;
+';
+
+                    $methodName = $valuesField->OneToMany->targetEntity;
+                    $methodName{0} = strtoupper($methodName{0});
+
+                    $tableDestName = $valuesField->OneToMany->targetEntity;
+                    $tableDestName = preg_replace_callback('/([A-Z])/', function($match) { return '_'.strtolower($match[1]); }, $tableDestName);
+
+                    $methodKeyName = $valuesField->JoinColumn->name;
+                    $methodKeyName = preg_replace_callback('/_([a-z])/', function($match) { return strtoupper($match[1]); }, $methodKeyName);
+                    $methodKeyName{0} = strtoupper($methodKeyName{0});
+
+                    $contentMethodPartOfFile .= '
+    /**
+     * @param  array $where
+     * @return array
+     */
+    public function get'.$methodName.'(array $where = [])
+    {
+        if ($this->'.$valuesField->OneToMany->targetEntity.' === null) {
+
+            $orm = new Orm;
+
+            $orm->select(array(\'*\'))
+                ->from(\''.$tableDestName.'\');
+												   
+            $where[\''.$valuesField->JoinColumn->referencedColumnName.'\'] = $this->get'.$methodKeyName.'();
+	        
+            $this->'.$valuesField->OneToMany->targetEntity.' = $orm->where($where)->load(false, \''.$this->getEntitiesNamespace().'\\\\\');
+        }
+        
+        return $this->'.$valuesField->OneToMany->targetEntity.';
+    }        
+	
+    /**
+     * @param  '.$this->getEntitiesNamespace().'\\'.$valuesField->OneToMany->targetEntity.' $'.$valuesField->OneToMany->targetEntity.'
+     * @return '.$this->getEntitiesNamespace().'\\'.$className.'
+     */
+    public function add'.$methodName.'('.$this->getEntitiesNamespace().'\\'.$valuesField->OneToMany->targetEntity.' $'.$valuesField->OneToMany->targetEntity.')
+    {
+        $this->'.$valuesField->OneToMany->targetEntity.'[] = $'.$valuesField->OneToMany->targetEntity.';
+        return $this;
+    }
+';
+                }
+                elseif (isset($valuesField->ManyToMany) && isset($valuesField->JoinColumn)) {
+
+                    $contentFile .= '
+    /**
+     * @var array
+     *
+     * @ORM\ManyToMany(targetEntity="'.$valuesField->ManyToMany->targetEntity.'")
+     * @ORM\JoinColumn(name="'.$valuesField->JoinColumn->name.'", referencedColumnName="'.$valuesField->JoinColumn->referencedColumnName.'")
+     */
+    private $'.$valuesField->ManyToMany->targetEntity.' = null;
+';
+                }
+            }
+
+            var_dump($contentFile.$contentMethodPartOfFile);
+        }
+    }
+
+    /**
+     * @param string $sqlJsonFile
+     * @param string $entitiesPath
+     */
+    private function createDatabase(string $sqlJsonFile, string $entitiesPath)
+    {
+        $configuration = json_decode(file_get_contents($sqlJsonFile));
+
+        $this->defaultConnection = $configuration->default_connection;
+
+        /**
+         * list all connection
+         */
+        foreach ($configuration->database as $name => $values) {
+
+            $containerDb = new DbContainer;
+
+            $containerDb->setDbName($values->db)
+                ->setHost($values->host)
+                ->setName($values->db)
+                ->setPassword($values->password)
+                ->setType($values->type)
+                ->setUser($values->user);
+
+            $pdo = Db::connect($containerDb);
+        }
+    }
+
+    /**
+     * @return boolean
+     */
+    public function isVerbose(): bool
+    {
+        return $this->verbose;
+    }
+
+    /**
+     * @param boolean $verbose
+     */
+    public function setVerbose(bool $verbose)
+    {
+        $this->verbose = $verbose;
+    }
+
+    /**
+     * @return string
+     */
+    public function getPortal(): string
+    {
+        return $this->portal;
+    }
+
+    /**
+     * @param string $portal
+     */
+    public function setPortal(string $portal)
+    {
+        $this->portal = $portal;
+    }
+
+    /**
+     * @return string
+     */
+    public function getEntitiesPath(): string
+    {
+        return $this->entitiesPath;
+    }
+
+    /**
+     * @param string $entitiesPath
+     */
+    public function setEntitiesPath(string $entitiesPath)
+    {
+        $this->entitiesPath = $entitiesPath;
+    }
+
+    /**
+     * @return string
+     */
+    public function getModelsPath(): string
+    {
+        return $this->modelsPath;
+    }
+
+    /**
+     * @param string $modelsPath
+     */
+    public function setModelsPath(string $modelsPath)
+    {
+        $this->modelsPath = $modelsPath;
+    }
+
+    /**
+     * @return string
+     */
+    public function getConfFile(): string
+    {
+        return $this->confFile;
+    }
+
+    /**
+     * @param string $confFile
+     */
+    public function setConfFile(string $confFile)
+    {
+        $this->confFile = $confFile;
+    }
+
+    /**
+     * @return string
+     */
+    public function getDefaultConnection() : string
+    {
+        return $this->defaultConnection;
+    }
+
+    /**
+     * @param string $defaultConnection
+     */
+    public function setDefaultConnection(string $defaultConnection)
+    {
+        $this->defaultConnection = $defaultConnection;
+    }
+
+    /**
+     * @return string
+     */
+    public function getEntitiesNamespace(): string
+    {
+        return $this->entitiesNamespace;
+    }
+
+    /**
+     * @param string $entitiesNamespace
+     */
+    public function setEntitiesNamespace(string $entitiesNamespace)
+    {
+        $this->entitiesNamespace = $entitiesNamespace;
+    }
+
+    /**
+     * @return string
+     */
+    public function getModelsNamespace(): string
+    {
+        return $this->modelsNamespace;
+    }
+
+    /**
+     * @param string $modelsNamespace
+     */
+    public function setModelsNamespace(string $modelsNamespace)
+    {
+        $this->modelsNamespace = $modelsNamespace;
     }
 }
